@@ -1,10 +1,11 @@
-# 🚀 Streamer、Notification、Listener
+# 🚀 Streamer、Notification、Listener、watcher
 
 ### 源码位置
 
 * [Streamer](https://github.com/RocketChat/Rocket.Chat/blob/4.0.0/server/modules/streamer/streamer.module.ts)源码
 * [Notification](https://github.com/RocketChat/Rocket.Chat/blob/4.0.0/server/modules/notifications/notifications.module.ts)源码
 * [Listener](https://github.com/RocketChat/Rocket.Chat/blob/4.0.0/server/modules/listeners/listeners.module.ts)源码
+* [watcher](https://github.com/RocketChat/Rocket.Chat/blob/4.0.0/server/modules/watchers/watchers.module.ts)源码
 
 Streamer做了什么？Notification做了什么？Listener做了什么？总览
 
