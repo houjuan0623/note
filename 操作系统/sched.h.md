@@ -237,7 +237,7 @@ __asm__("str %%ax\n\t" \
 #define switch_to(n) {\
 /* 定义结构体：这里a和b是long类型，因为long类型在32为操作系统中占用32个bit，已经足够寻址32位操作系统的最大地址 */
 struct {long a,b;} __tmp; \
-
+/* 比较 ecx 寄存器（存储新任务的 task_struct 指针）和 _current 变量（存储当前任务的 task_struct 指针）。 */
 __asm__("cmpl %%ecx,_current\n\t" \
 	"je 1f\n\t" \
 	"movw %%dx,%1\n\t" \
