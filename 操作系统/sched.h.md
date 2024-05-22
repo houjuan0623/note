@@ -237,15 +237,20 @@ __asm__("str %%ax\n\t" \
 #define switch_to(n) {\
 /* 定义结构体：这里a和b是long类型，因为long类型在32为操作系统中占用32个bit，已经足够寻址32位操作系统的最大地址 */
 struct {long a,b;} __tmp; \
-/* 比较 ecx 寄存器（存储新任务的 task_struct 指针）和 _current 变量（存储当前任务的 task_struct 指针）。 */
-__asm__("cmpl %%ecx,_current\n\t" \
-	"je 1f\n\t" \
-	"movw %%dx,%1\n\t" \
-	"xchgl %%ecx,_current\n\t" \
-	"ljmp %0\n\t" \
-	"cmpl %%ecx,_last_task_used_math\n\t" \
-	"jne 1f\n\t" \
-	"clts\n" \
+__asm__("cmpl %%ecx,_current\n\t" \ /* 比较 ecx 寄存器（存储新任务的 task_struct 指针）和 _current 变量（存储当前任务的 task_struct 指针）。 */
+	"je 1f\n\t" \ /* 如果 ecx 寄存器（新任务的 task_struct 指针）与 _current 变量（当前任务的 task_struct 指针）相等，则跳转到标号为 1 的位置。这表示要切换到的新任务就是当前任务，不需要进行任务切换，直接结束 switch_to 宏。 */
+	"movw %%dx,%1\n\t" \ /* 将 dx 寄存器中存储的 16 位数据（新任务的 TSS 段选择符）移动到 __tmp 结构体 b 成员所在的内存地址处。 */
+	"xchgl %%ecx,_current\n\t" \ /* 将 ecx 寄存器中的值（新任务的 task_struct 指针）和 _current 变量中的值（当前任务的 task_struct 指针）进行交换。交换后，ecx 寄存器中存储的是原先当前任务的 task_struct 指针，而 _current 变量中存储的是新任务的 task_struct 指针。 */
+	"ljmp %0\n\t" \ /* 汇编指令，表示进行远跳转。ljmp *%0 的作用是：
+			 * 获取跳转目标地址： 从 __tmp 结构体的 a 成员中读取新任务的代码入口地址。
+			 * 执行远跳转： 将CPU的指令指针（EIP）设置为新任务的代码入口地址，开始执行新任务的代码。
+			*/
+	"cmpl %%ecx,_last_task_used_math\n\t" \ /* 比较任务指针： 比较 ecx 寄存器中的值（原先当前任务的 task_struct 指针）和 _last_task_used_math 变量中的值（上次使用数学协处理器的任务的 task_struct 指针）。 */
+	"jne 1f\n\t" \ /* 如果不同则直接跳转到switch_to执行结束，接下来如果显式调用协处理器上下文保存函数save_i387()，则会保存协处理器上下文 */
+	"clts\n" \ /* 执行 clts 指令，清除 TS 标志。这样，在下次切换回这个任务时，由于 TS 标志为 0，系统就不会进行协处理器上下文的保存和恢复操作 */
+	/* 如果即将切换出去的任务是上次使用 FPU 的任务。
+	 * 清除 TS 标志，告诉硬件当前任务没有使用过 FPU。
+	 * 优化 FPU 上下文切换： 由于新任务不需要使用 FPU，或者新任务和原先任务的 FPU 上下文相同，因此在下次切换回该任务时，不需要进行 FPU 状态的保存和恢复操作，从而提高任务切换的效率。 */
 	"1:" \
 	::"m" (*&__tmp.a),"m" (*&__tmp.b), \
 	"d" (_TSS(n)),"c" ((long) task[n])); \
