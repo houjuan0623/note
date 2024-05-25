@@ -1,0 +1,114 @@
+# GDT
+
+## GDT 表项结构
+
+GDT 中的每个表项称为段描述符（Segment Descriptor），占用 8 个字节，其结构如下表所示：
+
+| 字段            | 位偏移 | 大小 (bit) | 描述                                        |
+| ------------- | :-: | :------: | ----------------------------------------- |
+| Base\[31:24]  |  56 |     8    | 段基址的高 8 位                                 |
+| G             |  55 |     1    | 粒度（Granularity）：0 表示字节，1 表示 4KB           |
+| D/B           |  54 |     1    | 默认操作数大小/32 位模式：0 表示 16 位，1 表示 32 位        |
+| L             |  53 |     1    | 64 位代码段：仅在 IA-32e 模式下使用，在 Linux 0.11 中未使用 |
+| AVL           |  52 |     1    | 可用位：由软件使用                                 |
+| Limit\[19:16] |  48 |     4    | 段界限的高 4 位                                 |
+| P             |  47 |     1    | 段存在（Present）：1 表示段存在，0 表示段不存在             |
+| DPL           |  45 |     2    | 特权级（Descriptor Privilege Level）：0 \~ 3    |
+| S             |  44 |     1    | 描述符类型（Descriptor Type）：0 表示系统段，1 表示代码或数据段 |
+| Type          |  40 |     4    | 段类型                                       |
+| Base\[23:16]  |  32 |     8    | 段基址的中间 8 位                                |
+| Base\[15:0]   |  0  |    16    | 段基址的低 16 位                                |
+| Limit\[15:0]  |  16 |    16    | 段界限的低 16 位                                |
+
+> **Base\[m:n]的含义：**
+>
+> \
+> 段基址是一个32位的地址，用于指定段在内存中的起始位置。段基址被分成了三部分存储：
+>
+> * `Base[15:0]`：段基址的低16位，存储在段描述符的最低16位。
+> * `Base[23:16]`：段基址的中间8位，存储在段描述符的第32位到第39位。
+> * `Base[31:24]`：段基址的高8位，存储在段描述符的第56位到第63位。
+>
+> **示例**
+>
+> 假设一个段的基地址为 `0x12345678`，那么在段描述符中，它的存储方式如下：
+>
+> * `Base[15:0]` = `0x5678`
+> * `Base[23:16]` = `0x34`
+> * `Base[31:24]` = `0x12`
+
+### 段类型
+
+段描述符的 Type 字段有不同的取值，表示不同的段类型。下面是一些常见的段类型：
+
+| Type 值 | 描述         |
+| :----: | ---------- |
+|    0   | 数据段只读      |
+|    1   | 数据段可读写     |
+|    2   | 数据段向下扩展    |
+|    3   | 数据段向下扩展可读写 |
+|    8   | 代码段只执行     |
+|    9   | 代码段可执行可读   |
+|   10   | 代码段一致      |
+|   11   | 代码段一致可读    |
+
+## **linux0.12中GDT的初始化**
+
+在 Linux 0.11 内核的 `head.s` 文件中，定义了如下 GDT 初始化数据：
+
+```
+_gdt:
+    .quad 0x0000000000000000  /* NULL descriptor */
+    .quad 0x00c09a0000000fff  /* 16Mb - code segment */
+    .quad 0x00c0920000000fff  /* 16Mb - data segment */
+    .quad 0x0000000000000000  /* TEMPORARY - don't use */
+    .fill 252,8,0          /* space for LDT's and TSS's etc */
+```
+
+下面结合 GDT 表项结构来解释这些初始化数据：
+
+* **NULL descriptor**：这是一个空描述符，所有字段都为 0。
+* **16Mb - code segment**：根据G位计算段长度，段描述符中有一个G位，表示段界限的粒度。当G=0时，段界限以字节为单位，**段长度 = 段界限值 + 1**；当G=1时，段界限以4KB为单位，**段长度 = (段界限值 + 1) \* 4KB**。
+  * Base = 0x00000000
+  * G = 1 (4KB 粒度)
+  * D/B = 1 (32 位模式)
+  * L = 0 (未使用)
+  * AVL = 0 (未使用)
+  * Limit = (0x0FFF + 1) \* 4KB (段界限为 16MB - 1)
+  * P = 1 (段存在)
+  * DPL = 0 (特权级 0)
+  * S = 1 (代码或数据段)
+  * Type = 1010b (代码段可执行可读)
+* **16Mb - data segment**：这是一个 16MB 的数据段描述符。与代码段描述符类似，只是 Type 字段不同。
+  * Type = 0010b (数据段可读写)
+* **TEMPORARY - don't use**：这是一个空描述符，暂时未使用。
+* **space for LDT's and TSS's etc**：预留 252 个空描述符，用于后续的 LDT（局部描述符表）和 TSS（任务状态段）等。
+
+## 关于LDT和TSS
+
+在 Linux 0.11 中，LDT（Local Descriptor Table，局部描述符表）和 TSS（Task State Segment，任务状态段）的描述符都插入在 GDT（Global Descriptor Table，全局描述符表）中。
+
+**原因**
+
+* **硬件限制**：在早期的 x86 架构中，LDTR（Local Descriptor Table Register）和 TR（Task Register）寄存器只能存储 GDT 中的描述符索引，无法直接存储 LDT 和 TSS 的地址。
+* **简化管理**：将 LDT 和 TSS 描述符都放在 GDT 中，可以简化内存管理，避免为每个任务单独分配 LDT 和 TSS 的内存空间。
+
+**实现方式**
+
+在 Linux 0.11 中，`sched_init` 函数负责初始化 GDT，并将 LDT 和 TSS 描述符插入到 GDT 中。
+
+```
+set_tss_desc(gdt+FIRST_TSS_ENTRY,&(init_task.task.tss));  // 设置 TSS 描述符
+set_ldt_desc(gdt+FIRST_LDT_ENTRY,&(init_task.task.ldt));  // 设置 LDT 描述符
+```
+
+* `FIRST_TSS_ENTRY` 和 `FIRST_LDT_ENTRY` 是 GDT 中预留的用于存储 LDT 和 TSS 描述符的索引。
+* `init_task.task.tss` 和 `init_task.task.ldt` 分别是初始任务的 TSS 和 LDT 结构体。
+
+**后续发展**
+
+在 Linux 内核的后续版本中，为了支持更多的任务和更灵活的内存管理，LDT 和 TSS 的处理方式有所变化：
+
+* **Linux 2.4**：所有任务共享同一个 LDT，这个 LDT 的描述符仍然存储在 GDT 中。
+* **Linux 2.6 及以后**：LDT 已经不再使用，每个任务的内存布局通过页表（Page Table）来管理。TSS 仍然存储在 GDT 中，但不再包含 LDT 信息。
+
