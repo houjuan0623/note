@@ -1,3 +1,4 @@
 # Table of contents
 
-* [🤝 前戏](README.md)
+* [📖 前言](README.md)
+* [Page 1](page-1.md)
