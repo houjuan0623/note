@@ -22,18 +22,31 @@ sudo make install
             "name": "debug libuv",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/libuvTest/file",
+            "program": "${workspaceFolder}/libuvTest/tcp",
             "args": [],
-            "stopAtEntry": false,
+            "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/usr/local/lib" //或者你libuv.so所在的目录
+                }
+            ],
             "externalConsole": false,
             "MIMode": "gdb",
             "preLaunchTask": "build libuv example",
+            "sourceFileMap": {
+                "/home/seconp/桌面/workspace/CORC++/libuv-1.42.0": "${workspaceFolder}/../libuv-1.42.0"
+            },
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
                     "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Add source code directory",
+                    "text": "directory ${workspaceFolder}",
                     "ignoreFailures": true
                 }
             ]

@@ -46,7 +46,7 @@
 
 ## 猜测：IO模型中，一定有...
 
-<figure><img src=".gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
 
 所以能够提升效率的地方在哪儿呢？
 
