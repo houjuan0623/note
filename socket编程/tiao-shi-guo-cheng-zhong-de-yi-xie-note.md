@@ -62,3 +62,25 @@ The primary role of `uv__stream_io` is to act as the central event handler for I
 4. **Code Readability and Maintainability:**
    * 通过将 `fd` 初始化为 -1，可以更清晰地表达该 `io_watcher` 的初始状态，提高代码的可读性和可维护性。
    * 避免了在后续代码中对未初始化的 `fd` 值进行不必要的检查或处理。
+
+***
+
+**Handle (句柄)**
+
+* **长期存在**：Handle 就像是应用程序与操作系统之间的桥梁，代表了一个长期存在的资源。比如，一个 TCP server handle 代表了一个 TCP 服务器，它会一直存在，直到你关闭它。
+* **关联回调函数**：每个 handle 都可以关联一个或多个回调函数。当对应的 I/O 事件发生时（比如新的客户端连接、数据到达），libuv 就会调用这些回调函数来通知你的应用程序。
+* **类型多样**：libuv 提供了多种类型的 handle，每种类型对应不同的 I/O 资源，例如：
+  * `uv_tcp_t`：TCP socket 句柄
+  * `uv_timer_t`：定时器句柄
+  * `uv_fs_t`：文件系统操作句柄
+
+**Request (请求)**
+
+* **短期操作**：Request 代表了一个具体的 I/O 操作，通常是短期的。比如，一个 write request 代表了一次写操作，当写操作完成后，这个 request 也就结束了。
+* **依赖 Handle**：大部分 request 都是基于 handle 的，比如，你要在 TCP socket 上发送数据，就需要创建一个 write request，并指定对应的 TCP server handle。
+* **独立 Request**：但也有一些 request 是独立的，不依赖于 handle，比如 `uv_getaddrinfo_t` 用于域名解析。
+
+**总结**
+
+* **Handle** 就像是打开的文件、监听的端口，它们长期存在，等待事件发生。
+* **Request** 就像是读取文件、发送数据，它们是具体的 I/O 操作，完成后就消失。
