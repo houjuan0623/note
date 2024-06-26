@@ -104,6 +104,14 @@ struct uv_loop_s {
  int emfile_fd;                               \
 
  UV_PLATFORM_LOOP_FIELDS   
+----------------------------------------------
+ #define UV_PLATFORM_LOOP_FIELDS 
+                                               \
+  uv__io_t inotify_read_watcher; 
+                                               \
+  void* inotify_watchers;       
+                                                \
+  int inotify_fd; 
 ```
 
 `uv__io_poll` 负责管理 I/O 观察者（uv\_\_io\_t），这些观察者用于监听特定文件描述符上的 I/O 事件。
