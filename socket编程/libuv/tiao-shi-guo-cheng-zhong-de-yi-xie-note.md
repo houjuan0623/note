@@ -8,7 +8,7 @@
 
 **这个内容比较重要，稍后需要串起来**
 
-&#x20;![](<../.gitbook/assets/image (1).png>)
+&#x20;![](<../.gitbook/assets/image (1) (1).png>)
 
 当I/O事件发生时，libuv会将io\_watcher结构添加到watcher\_queue中。然后，libuv会定期调用uv\_\_io\_poll函数来检查watcher\_queue中是否有待处理的I/O事件。如果有，libuv会调用io\_watcher结构中的cb回调函数来处理I/O事件。
 
