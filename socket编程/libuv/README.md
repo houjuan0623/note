@@ -2,7 +2,7 @@
 
 ## libuv的核心循环
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1) (1).png" alt=""><figcaption></figcaption></figure>
 
 上图对应的源码：
 

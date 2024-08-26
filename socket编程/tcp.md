@@ -8,7 +8,7 @@
    2. 服务器必须确认（ACK）客服端的SYN，同时自己也发送一个SYN，其中ACK=SYN+1，告诉客户端服务器将在待建立的连接中发送的数据的初始序列号。
    3. 客户端必须发送确认（ACK），其中ACK=SYN+1。
 
-<figure><img src=".gitbook/assets/image (1) (1) (1) (1).png" alt=""><figcaption><p>TCP 三次握手</p></figcaption></figure>
+<figure><img src=".gitbook/assets/image (1) (1) (1) (1) (1).png" alt=""><figcaption><p>TCP 三次握手</p></figcaption></figure>
 
 > 什么是ACK？ACK中的确认号是发送ACK的一端所期待的下一个序列号。因为SYN已经占据一个字节的空间，所以每一个SYN对应的ACK应该是SYN+1。
 >
@@ -21,7 +21,7 @@
 3. 一段时间之后（这段时间可长可短，应用进程用来处理FIN之前的数据），接收到文件结束符的应用进程将会调用close关闭套接字。这导致TCP会发送一个FIN。
 4. 接受这个FIN的原发送端会确认这个FIN。
 
-<figure><img src=".gitbook/assets/image (1) (1) (1) (1) (1).png" alt=""><figcaption><p>TCP四次挥手</p></figcaption></figure>
+<figure><img src=".gitbook/assets/image (1) (1) (1) (1) (1) (1).png" alt=""><figcaption><p>TCP四次挥手</p></figcaption></figure>
 
 > 大部分情况下，被动关闭方会将ACK和SYN一起发送。
 
