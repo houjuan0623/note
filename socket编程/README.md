@@ -250,9 +250,225 @@ poll函数不存在[#select-zui-da-miao-shu-fu-shu](./#select-zui-da-miao-shu-fu
 
 ### poll实现TCP回射服务器
 
+```c
+#include "unp.h"
+#include <limits.h>
+
+int main(int argc, chat **argv){
+    int i, maxi, listenfd, connfd, sockfd;
+    int nready;
+    ssize_t n;
+    char buf[MAXLINE];
+    socklen_t chilen;
+    struct pollfd client[OPEN_MAX]; // 这里设置client数组长度为OPEN_MAX
+    struct sockaddr_in, cliaddr, servaddr;
+    
+    listenfd = Socket(AF_INFT, SOCK_STREAM, 0);
+    
+    bzero(&servaddr, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(SERV_PORT);
+    
+    Bind(listenfd, (SA *) &servaddr, sizeof(servaddr));
+    
+    Listen(listenfd, LISTENQ);
+    
+    /* 把client数组的第一项用于监听套接字，并把其余各项描述符成员设置为-1。
+       将第一项的事件设置为POLLRNDORM，这样当有新的连接准备好被接收时poll将通知我们。
+      */
+    client[0].fd = listenfd;
+    client[0].events = POLLRDNORM;
+    for(i = 1; i < OPEN_MAX; i++)
+        client[i].fd = -1;  // -1 代表可用的空间
+    maxi = 0;  // 代表当前client有效描述符对应的最大索引位置
+    for(;;){
+        // 调用poll等待新的连接或者现有连接上有数据可读。
+        nready = Poll(client, maxi + 1, INFTIM);
+        // 一个新的连接被接收后，在client数组中查找到第一个描述符为负的可用项，将新连接的描述符保存到其中。
+        if(client[0].revents & POLLRDNORM){
+            clilen = sizeof(cliaddr);
+            connfd = accept(listenfd, (SA *) &cliaddr, &clilen);
+            
+            for(i = 1; i < OPEN_MAX; i++)
+                if(client[i].fd < 0){
+                    client[i].fd = connfd;
+                    break;
+                }
+            if(i == OPEN_MAX)
+                err_quit("too many clients");
+                
+            client[i].events = POLLRDNORM;
+            if(i > maxi)
+                maxi = i; // max index in client array
+                
+            if(--nready <= 0)
+                continue;
+        }
+        
+        for(i = 1; i <= maxi; i++){
+            if((sockfd = client[i].fd) < 0)
+                continue;
+            // 检查POLLRDNORM | POLLERR，我们并没有在events中设立第二个事件，但是它在条件成立时就会返回。
+            if(client[i].revents & (POLLRDNORM | POLLERR)){
+                if((n = read(socketfd, buf, MAXLINE)) < 0) {
+                     if(errno == ECONNRESET){
+                         Close(sockfd);
+                         client[i].fd = -1;
+                     } else 
+                         err_sys("read error");
+                 } else if(n == 0) {
+                     Close(sockfd);
+                     client[i].fd = -1;
+                 } else
+                     Writen(sockfd, buf, n);
+                 
+                 if(--nready <= 0)
+                     break;
+             }
+        }
+    }
+}
+```
+
 ## epoll
 
+### epoll实现TCP回射服务器
 
+```c
+#include "unp.h"
+#include <sys/epoll.h>
+#include <limits.h>
+
+int main(int argc, char **argv) {
+    int i, listenfd, connfd, sockfd, epfd, nfds;
+    ssize_t n;
+    char buf[MAXLINE];
+    socklen_t clilen;
+    struct epoll_event ev, events[OPEN_MAX];
+    struct sockaddr_in cliaddr, servaddr;
+
+    listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+
+    bzero(&servaddr, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(SERV_PORT);
+
+    Bind(listenfd, (SA *)&servaddr, sizeof(servaddr));
+
+    Listen(listenfd, LISTENQ);
+
+    epfd = epoll_create1(0);
+    if (epfd == -1)
+        err_sys("epoll_create1 error");
+
+    ev.events = EPOLLIN;
+    ev.data.fd = listenfd;
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, listenfd, &ev) == -1)
+        err_sys("epoll_ctl: listen_sock error");
+
+    for (;;) {
+        nfds = epoll_wait(epfd, events, OPEN_MAX, -1);
+        if (nfds == -1)
+            err_sys("epoll_wait error");
+
+        for (i = 0; i < nfds; i++) {
+            if (events[i].data.fd == listenfd) {  // 新连接
+                clilen = sizeof(cliaddr);
+                connfd = Accept(listenfd, (SA *)&cliaddr, &clilen);
+
+                ev.events = EPOLLIN | EPOLLET; // 使用边缘触发模式
+                ev.data.fd = connfd;
+                if (epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) == -1)
+                    err_sys("epoll_ctl: conn_sock error");
+            } else {  // 已有连接上有数据可读
+                sockfd = events[i].data.fd;
+                if ((n = read(sockfd, buf, MAXLINE)) < 0) {
+                    if (errno == ECONNRESET) {
+                        close(sockfd);
+                        if (epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL) == -1)
+                            err_sys("epoll_ctl: conn_sock error");
+                    } else
+                        err_sys("read error");
+                } else if (n == 0) {
+                    close(sockfd);
+                    if (epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL) == -1)
+                        err_sys("epoll_ctl: conn_sock error");
+                } else
+                    Writen(sockfd, buf, n);
+            }
+        }
+    }
+}
+```
+
+在使用 epoll 的边缘触发（EPOLLET）模式时，可能出现的一种潜在问题：
+
+* **场景设置**：
+  1. 我们有一个管道（pipe），它的读取端文件描述符 `rfd` 被注册到了 epoll 实例中，并且使用了边缘触发模式。
+  2. 管道的写入端写入 2KB 数据。
+  3. 调用 `epoll_wait`，`rfd` 被返回，表示有数据可读。
+  4. 从 `rfd` 中读取 1KB 数据。
+  5. 再次调用 `epoll_wait`。
+* **问题**：
+  * 在步骤 5 中，`epoll_wait` 可能会挂起（阻塞），即使输入缓冲区中还有剩余数据未读。
+  * 这是因为边缘触发模式下，epoll 只在文件描述符状态发生变化时才会产生事件。
+  * 在步骤 2 中，写入数据导致 `rfd` 状态变为可读，触发了一个事件，这个事件在步骤 3 中被 `epoll_wait` 消费。
+  * 虽然步骤 4 中只读取了部分数据，但 `rfd` 仍然处于可读状态，它的状态没有发生变化。
+  * 因此，在步骤 5 中，`epoll_wait` 不会再收到任何事件通知，从而导致挂起。
+* **影响**：
+  * 这种情况下，管道的另一端（写入端）可能正在等待读取端的响应，但读取端却因为 `epoll_wait` 挂起而无法及时处理数据，导致通信停滞。
+
+所以使用边缘触发模式时需要注意：
+
+* **及时处理事件**：当 epoll 通知文件描述符就绪时，应用程序需要尽可能地读取或写入数据，直到遇到 `EAGAIN` 错误，确保文件描述符的状态发生变化，以便下次能再次触发事件。
+* **非阻塞 I/O**：为了避免 `epoll_wait` 挂起，通常需要将文件描述符设置为非阻塞模式，这样在读取或写入数据时，如果操作无法立即完成，会返回 `EAGAIN` 错误，而不是阻塞等待。
+* **循环处理**：在边缘触发模式下，一次 `epoll_wait` 可能只会通知一部分就绪事件。因此，应用程序需要使用循环来处理所有就绪的文件描述符，直到没有更多的就绪事件为止。
+
+解决边缘出发模式的思想：
+
+* **使用非阻塞文件描述符**：这是使用 `EPOLLET` 的前提条件。
+* **仅在 `read` 或 `write` 返回 `EAGAIN` 后才等待事件**：这是 `EPOLLET` 的关键用法。
+
+**为什么要这样做？**
+
+* **避免事件丢失**：在 `EPOLLET` 模式下，如果一次 `epoll_wait` 返回后，您没有完全处理完文件描述符上的所有就绪事件（例如只读取了部分数据），那么后续的 `epoll_wait` 调用可能不会再通知您该文件描述符，即使还有数据可读或可写空间。
+* **提高效率**：通过在 `read` 或 `write` 返回 `EAGAIN` 后才等待事件，可以避免不必要的 `epoll_wait` 调用，从而提高程序的效率。
+
+```c
+// 假设 sockfd 是一个非阻塞套接字，已经注册到 epoll 实例中，使用 EPOLLET 模式
+int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
+
+for (int i = 0; i < nfds; i++) {
+    if (events[i].data.fd == sockfd) {
+        if (events[i].events & EPOLLIN) {
+            // 处理可读事件
+            while (1) {
+                ssize_t n = read(sockfd, buf, sizeof(buf));
+                if (n > 0) {
+                    // 处理读取到的数据
+                } else if (n == 0) {
+                    // 连接关闭
+                    close(sockfd);
+                    break;
+                } else {
+                    if (errno == EAGAIN) {
+                        // 没有更多数据可读，退出循环
+                        break;
+                    } else {
+                        // 处理错误
+                        perror("read");
+                        close(sockfd);
+                        break;
+                    }
+                }
+            }
+        } 
+        // ... 处理其他事件 ...
+    }
+}
+```
 
 ## select vs poll vs epoll
 
