@@ -175,8 +175,11 @@ int main(int argc, char **argv){
     
     for(;;) {
         rset =  allset;
+        // 首次循环的时候，select的唯一描述符是监听描述符。
+        // select等待某个事件的发生：或是新客户连接的建立，或是数据、FIN或RST的到达。
         nready = Select(maxfd+1, &rset, NULL, NULL, NULL);
-        // 检查listenfd是否可读，可读的话说明监听到了新的连接到来
+        // 检查listenfd是否可读，可读的话说明监听到了新的连接到来。下面我们调用accept并相应地更新数据结构
+        // 使用client数组中的第一个未用项记录这个已连接描述符。
         if(FD_ISSET(listenfd, &rset)){
             clilen = sizeof(cliaddr);
             connfd = Accept(listenfd, (SA *) &cliaddr, &clilen);
@@ -196,6 +199,7 @@ int main(int argc, char **argv){
                 maxfd = connfd;
             if(i > maxi)
                 maxi = i;
+            // 使用select的返回值来避免检查未就绪的描述符。
             if(--nready <= 0)
                 continue; // 说明只有一个listenfd接收到数据了，其他的描述符还没有接收到数据
         }
@@ -222,11 +226,66 @@ int main(int argc, char **argv){
 
 ## poll
 
+```c
+#include <poll.h>
+// 返回：若有就绪描述符，就返回其数目，若超时则为0，若出错则为-1。
+int poll(struct pollfd *fdarray, unsigned long nfdx, int timeout);
+```
 
+第一个参数是指向结构数组第一个元素的指针。每个数组元素都是pollfd的结构，用于指定测试某个给定描述符fd的条件。
+
+```c
+struct pollfd {
+    int fd; // 描述符
+    short events; // 针对该描述符感兴趣的事件
+    short revents; // 在fd上发生的事件（和events相对应）
+}
+```
+
+<table><thead><tr><th width="172" align="center">常        值</th><th width="175" align="center">作为events的输入？</th><th width="195" align="center">作为revents的输入？</th><th align="center">说     明</th></tr></thead><tbody><tr><td align="center">POLLIN<br>POLLRDNORM<br>POLLRDBAND<br>POLLPRI</td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center">普通或优先级数据可读<br>普通数据可读<br>优先级数据可读<br>高优先级数据可读</td></tr><tr><td align="center">POLLOUT<br>POLLWRNORM<br>POLLERBAND</td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center">普通数据或优先级可写<br>普通数据可写<br>优先级数据可写</td></tr><tr><td align="center">POLLERR<br>POLLHUP<br>POLLNVAL</td><td align="center"></td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center">发生错误<br>发生挂起<br>描述非打开的文件</td></tr></tbody></table>
+
+上表中POLLIN等数据可以作为events的值赋给pollfd，但是POLLERR等不能作为events的值赋给pollfd。右侧说明中表达的是该常量对应的含义。
+
+poll函数不存在[#select-zui-da-miao-shu-fu-shu](./#select-zui-da-miao-shu-fu-shu "mention")所引起的问题。因为分配一个pollfd结构的数组并把该数组中元素的数目通知内核成了调用者的责任，内核不需要知道类似fd\_set的数据。
+
+### poll实现TCP回射服务器
 
 ## epoll
 
 
+
+## select vs poll vs epoll
+
+> 关于水平触发和边缘触发：
+>
+> 水平触发（Level Triggered, LT）和边缘触发（Edge Triggered, ET）是 I/O 多路复用中两种不同的事件触发方式，它们决定了内核何时通知应用程序文件描述符已经就绪。
+>
+> **水平触发（LT）**
+>
+> * **特点**：只要文件描述符处于就绪状态，就会一直触发事件。
+> * **行为**：
+>   * 当文件描述符变为可读或可写时，内核会通知应用程序。
+>   * 如果应用程序没有立即处理该事件，并且文件描述符仍然保持就绪状态，内核会在下一次 `epoll_wait` 或 `poll` 调用时再次通知应用程序。
+>   * 这种方式更安全，因为应用程序不会错过任何事件，但可能会导致频繁的通知，增加系统开销。
+>
+> **边缘触发（ET）**
+>
+> * **特点**：只有当文件描述符状态发生变化时才会触发事件。
+> * **行为**：
+>   * 当文件描述符从不可读变为可读，或者从不可写变为可写时，内核会通知应用程序。
+>   * 如果应用程序没有立即处理该事件，并且文件描述符仍然保持就绪状态，内核不会再次通知应用程序，直到文件描述符状态再次发生变化。
+>   * 这种方式效率更高，因为避免了不必要的通知，但要求应用程序必须及时处理事件，否则可能会错过事件。
+
+| 特性            | select                | poll                  | epoll                |
+| ------------- | --------------------- | --------------------- | -------------------- |
+| **底层实现**      | 线性扫描                  | 线性扫描                  | 事件驱动                 |
+| **最大文件描述符限制** | 有限制，通常为 1024          | 没有硬性限制，但受限于系统资源       | 没有硬性限制，但受限于系统资源      |
+| **性能**        | 每次调用都需要遍历所有文件描述符，性能较差 | 每次调用都需要遍历所有文件描述符，性能较差 | 只处理活跃的连接，性能优秀        |
+| **数据拷贝**      | 每次调用都需要进行数据拷贝         | 每次调用都需要进行数据拷贝         | 只需一次从用户空间到内核空间的数据拷贝  |
+| **可移植性**      | 几乎所有 Unix/Linux 系统都支持 | 几乎所有 Unix/Linux 系统都支持 | 仅 Linux 系统支持         |
+| **触发模式**      | 仅支持水平触发（LT）           | 仅支持水平触发（LT）           | 支持水平触发（LT）和边缘触发（ET）  |
+| **使用场景**      | 适用于少量连接且活跃连接较多的场景     | 适用于少量连接且活跃连接较多的场景     | 适用于大量并发连接，且活跃连接较少的场景 |
+| **编程复杂度**     | 相对简单                  | 相对简单                  | 相对复杂                 |
 
 ## 描述符就绪条件
 
