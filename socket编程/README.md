@@ -134,7 +134,16 @@ client数组会记录下每个新的已连接描述符，并把它加入到描�
 
 <figure><img src=".gitbook/assets/image (21).png" alt=""><figcaption><p>第二个客户建立连接后的数据结构</p></figcaption></figure>
 
+接下来我们假设第一个客户终止它的连接，该客户的TCP发送一个FIN，将会使得描述符4变为可读。当服务器读这个已连接套接字时，read将返回0，我们于是关闭该套接字并相应地更新数据结构。把client\[0]置为-1，把描述符集中描述符4的位设置为0。如下图所示：\
+
+
+<figure><img src=".gitbook/assets/image (23).png" alt=""><figcaption><p>第一个客户终止连接后的数据结构</p></figcaption></figure>
+
+当有其他的客户到达时，我们使用client数组中的第一个可用项记录其已连接套接字的描述符，同时将该描述符更新到对应的描述符集中。
+
 ## poll
+
+
 
 ## epoll
 
