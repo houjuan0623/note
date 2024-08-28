@@ -141,6 +141,85 @@ client数组会记录下每个新的已连接描述符，并把它加入到描�
 
 当有其他的客户到达时，我们使用client数组中的第一个可用项记录其已连接套接字的描述符，同时将该描述符更新到对应的描述符集中。
 
+下面是上述版本对应的服务器代码：
+
+```c
+#include "udp.h"
+
+int main(int argc, char **argv){
+    int i, maxi, maxfd, listenfd, connfd, sockfd;
+    int nready, client[FD_SETSIZE];
+    ssize_t n;
+    fd_set rset, allset;
+    char buf[MAXLINE];
+    socklen_t clilen;
+    struct sockaddr_in cliaddr, servaddr;
+    
+    listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+    
+    bzero(&servaddr, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(SERV_PORT);
+    
+    Bind(listenfd, (SA *) &servaddr, sizeof(servaddr));
+    
+    Listen(listenfd, LISTENQ);
+    maxfd = listenfd;
+    maxi = -1;
+    // 初始化cient array
+    for(i = 0; i < F_SETSIZE; i++)
+        client[i] = -1;
+    FD_ZERO(&allset);
+    FD_SET(listenfd, &allset);
+    
+    for(;;) {
+        rset =  allset;
+        nready = Select(maxfd+1, &rset, NULL, NULL, NULL);
+        // 检查listenfd是否可读，可读的话说明监听到了新的连接到来
+        if(FD_ISSET(listenfd, &rset)){
+            clilen = sizeof(cliaddr);
+            connfd = Accept(listenfd, (SA *) &cliaddr, &clilen);
+            
+            for(i = 0; i < FD_SETSIZE; i++){
+                if(client[i] < 0){
+                    // 位置i对应的client[i]为-1，说明此位置可以用来记录描述符。
+                    client[i] = connfd;
+                    ;
+                }
+            }
+            if(i == FD_SETSIZE) {
+                err_quit("too many clients");
+            }
+            FD_SET(connfd, &allset); // 设置描述符集
+            if(connfd > maxfd)
+                maxfd = connfd;
+            if(i > maxi)
+                maxi = i;
+            if(--nready <= 0)
+                continue; // 说明只有一个listenfd接收到数据了，其他的描述符还没有接收到数据
+        }
+        for(i = 0; i <= maxi; i++){
+            if((sockfd = client[i]) < 0)
+                continue; // i位置对应-1，之前连接过，但是后来断开了
+            if(FD_ISSET(sockfd, &rset)) {
+                // 如果连接被对方关闭，返回值为 0，表示已经读取到文件末尾（FIN）
+                if((n = Read(sockfd, buf, MAXLINE)) == 0){
+                    // 此时客户端主动关闭了连接
+                    Close(sockfd);
+                    FD_CLR(sockfd, &allset);
+                    client[i] = -1;
+                } else {
+                    Writen(sockfd, buf, n);
+                }
+                if(--nready <= 0)
+                    break;
+            }
+        }
+    }
+}
+```
+
 ## poll
 
 
