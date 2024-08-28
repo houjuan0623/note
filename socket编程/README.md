@@ -106,19 +106,33 @@ struct timeval{
 
 为了解决描述符数量上限问题，我们很容易想到将FD\_SETSIZE定义为某个更大的值，但是这样事实上是行不通的。主要是从可移植性的角度考虑这个问题。
 
+### select实现TCP回射服务器程序
 
+在第一个客户建立连接之前TCP服务端应该存在一个监听描述符。下图中用一个圆点来表示。
 
+<figure><img src=".gitbook/assets/image (13).png" alt=""><figcaption><p>第一个客户建立连接前的服务器状态</p></figcaption></figure>
 
+此时服务器应该维护一个描述符集，假设服务器是在前台（通过中断控制台启动的），那么描述符0、1、2将会分别被设置为标准输入、标准输出、标准错误输出。所以监听套接字的第一个可用监听描述符是3。下图中展示的client数组，包含每个客户的已连接套接字描述符，数组中的数据被初始化为-1。
 
+<figure><img src=".gitbook/assets/image (18).png" alt=""><figcaption><p>仅有一个监听套接字的TCP服务器的数据结构</p></figcaption></figure>
 
+此时描述符集中唯一的非零项是表示监听套接字的项。此时maxfd1为4。
 
+第一个客户和服务器建立连接的时候，监听套接字变为可读，我们的服务器于是调用accept。下面假设accept返回的描述符是4。
 
+<figure><img src=".gitbook/assets/image (16).png" alt=""><figcaption><p>第一个客户建立连接后的TCP服务器</p></figcaption></figure>
 
+client数组会记录下每个新的已连接描述符，并把它加入到描述符集中去。
 
+<figure><img src=".gitbook/assets/image (19).png" alt=""><figcaption><p>第一个客户连接建立后的数据结构</p></figcaption></figure>
 
+第二个客户和服务器建立连接的时候，监听套接字变为可读，我们的服务器于是调用accept。下面假设accept返回的描述符是5。
 
+<figure><img src=".gitbook/assets/image (20).png" alt=""><figcaption><p>第二个客户建立连接后的TCP服务器</p></figcaption></figure>
 
+新的已连接描述符必须被记住，TCP服务器对应下面的数据结构。
 
+<figure><img src=".gitbook/assets/image (21).png" alt=""><figcaption><p>第二个客户建立连接后的数据结构</p></figcaption></figure>
 
 ## poll
 
