@@ -38,4 +38,5 @@
 
 ## molecular
 
+* [关于 molecular 服务发现问题](molecular/guan-yu-molecular-fu-wu-fa-xian-wen-ti.md)
 * [node & broker & service](molecular/node-and-broker-and-service.md)
