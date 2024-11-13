@@ -1,3 +1,7 @@
+---
+icon: lemon
+---
+
 # miniMongo
 
 客户端依赖的数据结构----miniMongo。

@@ -1,4 +1,8 @@
-# 🍃 Rocket.Chat 数据库文档
+---
+icon: lemon
+---
+
+# Rocket.Chat 数据库文档
 
 ## 概述
 
@@ -401,6 +405,115 @@ JSON
 * `roles` 字段是一个数组，存储了该成员在团队中扮演的角色 ID。
 * `createdBy` 字段包含创建该成员记录的用户的 ID 和用户名。
 
+### Sessions 集合
+
+| 字段名称                | 数据类型           | 是否必填                  | 默认值           | 描述                   | 示例                                                                                                                                          |
+| ------------------- | -------------- | --------------------- | ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_id`               | string         | 是                     | 自动生成          | 会话的唯一标识符             | "aBcDeFgH1jKlMnO"                                                                                                                           |
+| `type`              | 'session' \\   | 'computed-session' \\ | 'user\_daily' | 是                    |                                                                                                                                             |
+| `mostImportantRole` | string         | 是                     |               | 用户最重要的角色 ID          | "admin"                                                                                                                                     |
+| `userId`            | string         | 是                     |               | 用户的唯一标识符             | "aBcDeFgH1jKlMnO"                                                                                                                           |
+| `lastActivityAt`    | Date           | 否                     |               | 用户最后一次活动的时间          | 2024-11-13T10:38:00.000Z                                                                                                                    |
+| `device`            | ISessionDevice | 否                     |               | 用户设备信息               | `{ "type": "desktop", "name": "Chrome", "longVersion": "119.0.0.0", "os": { "name": "Windows", "version": "10" }, "version": "119.0.0.0" }` |
+| `roles`             | string\[]      | 是                     |               | 用户的角色列表              | `["user", "admin"]`                                                                                                                         |
+| `year`              | number         | 是                     |               | 会话创建的年份              | 2024                                                                                                                                        |
+| `month`             | number         | 是                     |               | 会话创建的月份              | 11                                                                                                                                          |
+| `day`               | number         | 是                     |               | 会话创建的日期              | 13                                                                                                                                          |
+| `instanceId`        | string         | 是                     |               | Rocket.Chat 实例的唯一标识符 | "aBcDeFgH1jKlMnO"                                                                                                                           |
+| `sessionId`         | string         | 是                     |               | 会话的唯一标识符             | "aBcDeFgH1jKlMnO"                                                                                                                           |
+| `_updatedAt`        | Date           | 是                     | 自动生成          | 会话最后更新的时间            | 2024-11-13T10:38:00.000Z                                                                                                                    |
+| `createdAt`         | Date           | 是                     | 自动生成          | 会话创建的时间              | 2024-11-13T10:38:00.000Z                                                                                                                    |
+| `host`              | string         | 是                     |               | 会话的主机名               | "\[移除了无效网址]"                                                                                                                                |
+| `ip`                | string         | 是                     |               | 用户的 IP 地址            | "192.168.1.1"                                                                                                                               |
+| `loginAt`           | Date           | 是                     |               | 用户登录的时间              | 2024-11-13T10:38:00.000Z                                                                                                                    |
+| `logoutAt`          | Date           | 否                     |               | 用户登出的时间              | 2024-11-13T11:38:00.000Z                                                                                                                    |
+| `closedAt`          | Date           | 否                     |               | 会话关闭的时间              | 2024-11-13T11:38:00.000Z                                                                                                                    |
+| `logoutBy`          | string         | 否                     |               | 执行登出操作的用户 ID         | "aBcDeFgH1jKlMnO"                                                                                                                           |
+| `loginToken`        | string         | 否                     |               | 用户登录的 token          | "aBcDeFgH1jKlMnO"                                                                                                                           |
+| `searchTerm`        | string         | 是                     |               | 用户的搜索词               | "Rocket.Chat"                                                                                                                               |
+
+**ISessionDevice 字段解析:**
+
+| 字段名称          | 数据类型   | 是否必填 | 默认值 | 描述        | 示例                                       |
+| ------------- | ------ | ---- | --- | --------- | ---------------------------------------- |
+| `type`        | string | 是    |     | 设备类型      | "desktop"                                |
+| `name`        | string | 是    |     | 设备名称      | "Chrome"                                 |
+| `longVersion` | string | 是    |     | 设备版本号（完整） | "119.0.0.0"                              |
+| `os`          | object | 是    |     | 操作系统信息    | `{ "name": "Windows", "version": "10" }` |
+| `version`     | string | 是    |     | 设备版本号     | "119.0.0.0"                              |
+
+### Sessions 备注
+
+sessions作用：
+
+* 存储所有活跃的会话信息，包括用户会话和客户端会话（例如，Web 客户端、移动客户端）。
+* 每个文档代表一个活跃的会话，包含会话 ID、连接信息、用户 ID（如果已认证）、过期时间等。
+* 用于跟踪在线用户、管理连接状态、实现消息推送等功能。
+
+***
+
+短连接 Accounts.onLogin -> sauEvents.emit(''accounts.login) -> SAUMonitor listen accounts.login -> Sessions.createOrUpdate。
+
+长连接 ddp-streamer listen logged -> ddp-streamer broadcast accounts.login -> SAUMonitor listen accounts.login -> Sessions.createOrUpdate
+
+所以长短连接都会生成session。
+
+
+
+### UsersSession 集合
+
+<table><thead><tr><th>字段名称</th><th>数据类型</th><th width="93">是否必填</th><th>默认值</th><th>描述</th><th>示例</th></tr></thead><tbody><tr><td>_id</td><td>string</td><td>是</td><td>由MongoDB自动生成</td><td>用户会话的唯一标识符</td><td>5f9e4a0b7c70e742b8c84a7b</td></tr><tr><td>connections</td><td>IUserSessionConnection[]</td><td>是</td><td>[]</td><td>用户会话连接的数组，记录用户在不同设备或实例上的连接信息</td><td>[{ "id": "xxx", "instanceId": "xxx", "status": "online", "_createdAt": "2023-10-26T10:00:00.000Z", "_updatedAt": "2023-10-26T11:00:00.0</td></tr></tbody></table>
+
+**IUserSessionConnection：**
+
+| 字段名称        | 数据类型          | 是否必填 | 默认值 | 描述                 | 示例                       |
+| ----------- | ------------- | ---- | --- | ------------------ | ------------------------ |
+| id          | string        | 是    |     | 会话连接的唯一标识符         | xxx                      |
+| instanceId  | string        | 是    |     | Rocket.Chat 实例的 ID | xxx                      |
+| status      | UserStatus 枚举 | 是    |     | 用户当前状态             | online                   |
+| \_createdAt | Date          | 是    |     | 会话连接创建时间           | 2023-10-26T10:00:00.000Z |
+| \_updatedAt | Date          | 是    |     | 会话连接更新时间           | 2023-10-26T11:00:00.000Z |
+
+### UsersSessions 备注
+
+* 专门存储已认证用户的会话信息。
+* 每个文档代表一个用户的特定会话，包含会话 ID、用户 ID、连接信息、登录时间、上次活动时间等。
+* 用于管理用户的登录状态、实现多设备登录、记录用户活动历史等功能。
+
+### About OAUTH
+
+#### OAuthAccessTokens 集合
+
+
+
+#### OAuthAccessTokens 备注
+
+该集合存储访问令牌 (Access Token) 以及与其相关的信息。访问令牌是颁发给客户端应用程序的凭证，允许它们在用户授权后代表用户访问受保护的资源。
+
+#### OAuthApps 集合
+
+
+
+#### OAuthApps 备注
+
+该集合存储已注册的 OAuth 应用程序的信息。
+
+#### OAuthAuthCodes 集合
+
+
+
+#### OAuthAuthCodes 备注
+
+该集合存储授权码 (Authorization Code) 以及与其相关的信息。授权码是 OAuth 2.0 授权码授权流程中使用的一种临时凭证，用于交换访问令牌。
+
+#### OAuthRefreshTokens 集合
+
+
+
+#### OAuthRefreshTokens 备注
+
+存储刷新令牌 (Refresh Token) 以及与其相关的信息。刷新令牌用于在访问令牌过期后获取新的访问令牌，而无需用户再次进行授权。
+
 ## 数据关系
 
 > 虽然mongoDB是非关系型数据库，但是在逻辑上，Rocketchat所设计的数据库仍具有关系。例如，Rocket.Chat 中的 `users` 集合和 `rooms` 集合之间就存在着“用户加入聊天室”的逻辑关系，尽管这种关系不是通过外键来实现的。
@@ -416,3 +529,11 @@ JSON
 
 * **users 和 rooms**：多对多关系，一个用户可以加入多个聊天室，一个聊天室可以有多个成员。
 * **users 和 subscriptions**：一对多关系，一个用户可以订阅多个聊天室。
+
+sessions和usersessions的区别：
+
+| 特性     | sessions         | usersessions    |
+| ------ | ---------------- | --------------- |
+| 存储范围   | 所有活跃会话           | 已认证用户的会话        |
+| 主要用途   | 跟踪在线用户、管理连接      | 管理用户登录状态、记录用户活动 |
+| 与用户的关联 | 可以与用户关联，也可以是匿名会话 | 始终与特定用户关联       |

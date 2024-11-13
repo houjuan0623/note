@@ -1,3 +1,7 @@
+---
+icon: sitemap
+---
+
 # Rocketchat 架构
 
 <figure><img src="../.gitbook/assets/image (32).png" alt=""><figcaption><p>官方的微服务架构</p></figcaption></figure>
