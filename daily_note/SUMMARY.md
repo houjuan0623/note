@@ -26,7 +26,8 @@
 * [Streamer、Notification、Listener、watcher](rocketchat/streamer-notification-listener-watcher.md)
 * [miniMongo](rocketchat/minimongo.md)
 * [Rocketchat 6.9.5的文件结构](rocketchat/rocketchat-6.9.5-de-wen-jian-jie-gou.md)
-* [🍃 Rocket.Chat 数据库文档](rocketchat/rocket.chat-shu-ju-ku-wen-dang.md)
+* [Rocket.Chat 数据库文档](rocketchat/rocket.chat-shu-ju-ku-wen-dang.md)
+* [待解决：为什么在Rocketchat中长短连接都emit('accounts.login')，进而生成了session文档？](rocketchat/dai-jie-jue-wei-shen-me-zai-rocketchat-zhong-chang-duan-lian-jie-dou-emitaccounts.login-jin-er-sheng.md)
 
 ## Rocketchat 仿开过程中的一些问题
 

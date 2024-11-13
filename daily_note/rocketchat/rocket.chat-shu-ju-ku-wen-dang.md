@@ -1,4 +1,8 @@
-# 🍃 Rocket.Chat 数据库文档
+---
+icon: lemon
+---
+
+# Rocket.Chat 数据库文档
 
 ## 概述
 

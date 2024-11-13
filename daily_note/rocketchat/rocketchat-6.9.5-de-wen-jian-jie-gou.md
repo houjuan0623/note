@@ -1,3 +1,7 @@
+---
+icon: cabinet-filing
+---
+
 # Rocketchat 6.9.5的文件结构
 
 使用 Yarn 配合 `package.json` 编写 Mono Package 的步骤如下：
