@@ -2,10 +2,14 @@
 
 ## 阅读 <a href="#learn-from-source-code" id="learn-from-source-code"></a>
 
-* [🆚 nodejs vs java](README.md)
-* [🌲 译文：从源码中学习（阅读源码，初学者的有效成长方式）](learn-from-source-code/yi-wen-cong-yuan-ma-zhong-xue-xi-yue-du-yuan-ma-chu-xue-zhe-de-you-xiao-cheng-zhang-fang-shi.md)
+* [🌲 译文：从源码中学习（阅读源码，初学者的有效成长方式）](README.md)
 * [👮 一些关于RC的具体的阅读计划](learn-from-source-code/yi-xie-guan-yu-rc-de-ju-ti-de-yue-du-ji-hua.md)
 * [👨‍💻 记录阅读源码遇到的问题](learn-from-source-code/ji-lu-yue-du-yuan-ma-yu-dao-de-wen-ti.md)
+* [🩸 promise vs 纤程](learn-from-source-code/promise-vs-xian-cheng.md)
+* [🩸 nodejs vs java](<README (1).md>)
+* [🩸 promise vs go(go处理并发的那个数据结构)](learn-from-source-code/promise-vs-gogo-chu-li-bing-fa-de-na-ge-shu-ju-jie-gou.md)
+* [🩸 长连接高并发](learn-from-source-code/chang-lian-jie-gao-bing-fa.md)
+* [🩸 数据库的增删改查问题](learn-from-source-code/shu-ju-ku-de-zeng-shan-gai-cha-wen-ti.md)
 
 ## 弄清已经存在的OmniChannel配置 <a href="#omnichannel" id="omnichannel"></a>
 
