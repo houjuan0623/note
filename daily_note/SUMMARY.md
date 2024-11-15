@@ -10,6 +10,7 @@
 * [🩸 promise vs go(go处理并发的那个数据结构)](learn-from-source-code/promise-vs-gogo-chu-li-bing-fa-de-na-ge-shu-ju-jie-gou.md)
 * [🩸 长连接高并发](learn-from-source-code/chang-lian-jie-gao-bing-fa.md)
 * [🩸 数据库的增删改查问题](learn-from-source-code/shu-ju-ku-de-zeng-shan-gai-cha-wen-ti.md)
+* [🩸 阅读一篇文章，生成自己的文章](learn-from-source-code/yue-du-yi-pian-wen-zhang-sheng-cheng-zi-ji-de-wen-zhang.md)
 
 ## 弄清已经存在的OmniChannel配置 <a href="#omnichannel" id="omnichannel"></a>
 
@@ -34,7 +35,6 @@
 * [待解决：为什么在Rocketchat中长短连接都emit('accounts.login')，进而生成了session文档？](rocketchat/dai-jie-jue-wei-shen-me-zai-rocketchat-zhong-chang-duan-lian-jie-dou-emitaccounts.login-jin-er-sheng.md)
 * [Rocketchat OAuth Server的实现](rocketchat/rocketchat-oauth-server-de-shi-xian.md)
 * [Rocketchat 怎样实现CI/CD的？](rocketchat/rocketchat-zen-yang-shi-xian-cicd-de.md)
-* [阅读一篇文章，生成自己的文章](rocketchat/yue-du-yi-pian-wen-zhang-sheng-cheng-zi-ji-de-wen-zhang.md)
 
 ## Rocketchat 仿开过程中的一些问题
 
