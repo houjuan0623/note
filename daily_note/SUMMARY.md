@@ -11,6 +11,8 @@
 * [🩸 长连接高并发](learn-from-source-code/chang-lian-jie-gao-bing-fa.md)
 * [🩸 数据库的增删改查问题](learn-from-source-code/shu-ju-ku-de-zeng-shan-gai-cha-wen-ti.md)
 * [🩸 阅读一篇文章，生成自己的文章](learn-from-source-code/yue-du-yi-pian-wen-zhang-sheng-cheng-zi-ji-de-wen-zhang.md)
+* [☺️ csr 和 ssr 对比](learn-from-source-code/csr-he-ssr-dui-bi.md)
+* [☺️ typescript decorators](learn-from-source-code/typescript-decorators.md)
 
 ## 弄清已经存在的OmniChannel配置 <a href="#omnichannel" id="omnichannel"></a>
 
