@@ -37,6 +37,8 @@
 * [待解决：为什么在Rocketchat中长短连接都emit('accounts.login')，进而生成了session文档？](rocketchat/dai-jie-jue-wei-shen-me-zai-rocketchat-zhong-chang-duan-lian-jie-dou-emitaccounts.login-jin-er-sheng.md)
 * [Rocketchat OAuth Server的实现](rocketchat/rocketchat-oauth-server-de-shi-xian.md)
 * [Rocketchat 怎样实现CI/CD的？](rocketchat/rocketchat-zen-yang-shi-xian-cicd-de.md)
+* [Rocketchat 长连接通信](rocketchat/rocketchat-chang-lian-jie-tong-xin.md)
+* [为了满足DDP协议，Rocketchat server端设计了一个什么样的数据结构？](rocketchat/wei-le-man-zu-ddp-xie-yi-rocketchat-server-duan-she-ji-le-yi-ge-shen-me-yang-de-shu-ju-jie-gou.md)
 
 ## Rocketchat 仿开过程中的一些问题
 
