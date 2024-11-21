@@ -2,10 +2,17 @@
 
 ## 阅读 <a href="#learn-from-source-code" id="learn-from-source-code"></a>
 
-* [🆚 nodejs vs java](README.md)
-* [🌲 译文：从源码中学习（阅读源码，初学者的有效成长方式）](learn-from-source-code/yi-wen-cong-yuan-ma-zhong-xue-xi-yue-du-yuan-ma-chu-xue-zhe-de-you-xiao-cheng-zhang-fang-shi.md)
+* [🌲 译文：从源码中学习（阅读源码，初学者的有效成长方式）](README.md)
 * [👮 一些关于RC的具体的阅读计划](learn-from-source-code/yi-xie-guan-yu-rc-de-ju-ti-de-yue-du-ji-hua.md)
 * [👨‍💻 记录阅读源码遇到的问题](learn-from-source-code/ji-lu-yue-du-yuan-ma-yu-dao-de-wen-ti.md)
+* [🩸 promise vs 纤程](learn-from-source-code/promise-vs-xian-cheng.md)
+* [🩸 nodejs vs java](<README (1).md>)
+* [🩸 promise vs go(go处理并发的那个数据结构)](learn-from-source-code/promise-vs-gogo-chu-li-bing-fa-de-na-ge-shu-ju-jie-gou.md)
+* [🩸 长连接高并发](learn-from-source-code/chang-lian-jie-gao-bing-fa.md)
+* [🩸 数据库的增删改查问题](learn-from-source-code/shu-ju-ku-de-zeng-shan-gai-cha-wen-ti.md)
+* [🩸 阅读一篇文章，生成自己的文章](learn-from-source-code/yue-du-yi-pian-wen-zhang-sheng-cheng-zi-ji-de-wen-zhang.md)
+* [☺️ csr 和 ssr 对比](learn-from-source-code/csr-he-ssr-dui-bi.md)
+* [☺️ typescript decorators](learn-from-source-code/typescript-decorators.md)
 
 ## 弄清已经存在的OmniChannel配置 <a href="#omnichannel" id="omnichannel"></a>
 
@@ -29,6 +36,9 @@
 * [Rocket.Chat 数据库文档](rocketchat/rocket.chat-shu-ju-ku-wen-dang.md)
 * [待解决：为什么在Rocketchat中长短连接都emit('accounts.login')，进而生成了session文档？](rocketchat/dai-jie-jue-wei-shen-me-zai-rocketchat-zhong-chang-duan-lian-jie-dou-emitaccounts.login-jin-er-sheng.md)
 * [Rocketchat OAuth Server的实现](rocketchat/rocketchat-oauth-server-de-shi-xian.md)
+* [Rocketchat 怎样实现CI/CD的？](rocketchat/rocketchat-zen-yang-shi-xian-cicd-de.md)
+* [Rocketchat 长连接通信](rocketchat/rocketchat-chang-lian-jie-tong-xin.md)
+* [为了满足DDP协议，Rocketchat server端设计了一个什么样的数据结构？](rocketchat/wei-le-man-zu-ddp-xie-yi-rocketchat-server-duan-she-ji-le-yi-ge-shen-me-yang-de-shu-ju-jie-gou.md)
 
 ## Rocketchat 仿开过程中的一些问题
 

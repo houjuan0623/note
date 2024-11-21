@@ -514,6 +514,30 @@ sessions作用：
 
 存储刷新令牌 (Refresh Token) 以及与其相关的信息。刷新令牌用于在访问令牌过期后获取新的访问令牌，而无需用户再次进行授权。
 
+
+
+### ServerEvent 集合
+
+| 字段名称         | 数据类型        | 是否必填 | 默认值  | 描述                 | 示例                                              |
+| ------------ | ----------- | ---- | ---- | ------------------ | ----------------------------------------------- |
+| `_id`        | string      | 是    | 自动生成 | 文档的唯一标识符           | `5f9e684ecc430e0067f9c7a0`                      |
+| `t`          | string (枚举) | 是    |      | 事件类型               | `login`, `failed-login-attempt`, ...            |
+| `ts`         | Date        | 是    |      | 事件发生的时间戳           | `2024-07-20T12:00:00Z`                          |
+| `u` (user)   | object      | 否    |      | 与事件相关的用户信息         | `{ _id: 'userId', username: 'john.doe' }`       |
+| `u._id`      | string      | 否    |      | 用户 ID              | `userId`                                        |
+| `u.username` | string      | 否    |      | 用户名                | `john.doe`                                      |
+| `ip`         | string      | 否    |      | 客户端 IP 地址          | `192.168.1.1`                                   |
+| `agent`      | string      | 否    |      | 客户端 User-Agent 字符串 | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...` |
+
+### ServerEvent 备注
+
+* `t` 字段取值来自 `ServerEventType` 枚举，定义了各种服务器事件类型，例如：
+  * `LOGIN`: 成功登录
+  * `FAILED_LOGIN_ATTEMPT`: 登录尝试失败
+  * 其他事件类型，具体定义请参考 `@jindun.chat/core-typings` 中的 `ServerEventType` 枚举。
+* `u` 字段是一个嵌套对象，包含用户信息。仅当事件与特定用户相关时才会存在。例如，登录事件会包含用户信息，而服务器启动事件则不会。
+* `ip`、`agent` 字段主要用于登录相关的事件，记录客户端信息。
+
 ## 数据关系
 
 > 虽然mongoDB是非关系型数据库，但是在逻辑上，Rocketchat所设计的数据库仍具有关系。例如，Rocket.Chat 中的 `users` 集合和 `rooms` 集合之间就存在着“用户加入聊天室”的逻辑关系，尽管这种关系不是通过外键来实现的。

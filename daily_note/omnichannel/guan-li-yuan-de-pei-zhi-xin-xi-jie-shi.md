@@ -68,7 +68,7 @@ External Frame 的配置通常在 Rocket.Chat 的管理界面中进行，你可�
 
 启用前
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1) (1).png" alt=""><figcaption></figcaption></figure>
 
 启用后
 
