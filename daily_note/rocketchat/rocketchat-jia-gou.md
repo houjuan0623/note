@@ -12,7 +12,9 @@ icon: sitemap
 * 每个service中都会使用 api.setBroker(broker) 将自身使用的broker设置为molecular的netWorkBroker。
 * 每个service都会调用 api.registerService(new XXX())将自身注册为一个service。
 
-但是上图中有一个特殊的微服务：Rocket.Chat
+## Rocketchat monolith
+
+特殊的微服务：Rocket.Chat
 
 这个服务中的broker和service是 1:n 的关系。其他的微服务中broker和service是1:1的关系。
 
