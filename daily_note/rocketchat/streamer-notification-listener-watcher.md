@@ -25,7 +25,15 @@ Streamer是Rocketchat后端管理订阅的核心数据结构。
 
 服务器启动以后，客户端将会通过ddp subscribe消息向Subscriptions和subscriptionsByEventName中添加数据。
 
+### method stream-notify-room
+
+* GENERAL/user-activity
+
 ### allow rules 初始化
+
+
+
+
 
 
 
@@ -114,7 +122,444 @@ this.onEvent('stream', ([streamer, eventName, args]): void => {
 
 <figure><img src="../.gitbook/assets/image (44).png" alt=""><figcaption></figcaption></figure>
 
+## message
 
+### 发送消息
+
+A和B和C分别连接了Rocketchat的服务器，三个客户端目前位于同一个聊天室。 A客户端发消息，会首先接收到四条消息，然后发送一个method消息，接下来接收到三条消息。
+
+```javascript
+// 消息1----a[]
+{
+    "msg": "changed",
+    "collection": "stream-notify-user",
+    "id": "id",
+    "fields": {
+        "eventName": "jAfXDKCQoEydreNpi/subscriptions-changed",
+        "args": [
+            "updated",
+            {
+                "_id": "ZRuLyj2HbTcdQXamY",
+                "open": true,
+                "alert": false,
+                "unread": 0,
+                "userMentions": 0,
+                "groupMentions": 0,
+                "ts": {
+                    "$date": 1732293708012
+                },
+                "rid": "giT7Qfy76GRfJWF7u",
+                "name": "12321123123",
+                "fname": "12321123123",
+                "t": "p",
+                "u": {
+                    "_id": "jAfXDKCQoEydreNpi",
+                    "username": "test222",
+                    "name": "test222"
+                },
+                "_updatedAt": {
+                    "$date": 1732358386458
+                },
+                "ls": {
+                    "$date": 1732358386458
+                }
+            }
+        ]
+    }
+}
+// 消息2----a[]
+{
+  "msg": "changed",
+  "collection": "stream-room-messages",
+  "id": "id",
+  "fields": {
+    "eventName": "giT7Qfy76GRfJWF7u",
+    "args": [
+      {
+        "_id": "5irE67FQL2T5bsKJr",
+        "rid": "giT7Qfy76GRfJWF7u",
+        "msg": "343532535",
+        "ts": {
+          "$date": 1732358386454
+        },
+        "u": {
+          "_id": "jAfXDKCQoEydreNpi",
+          "username": "test222",
+          "name": "test222"
+        },
+        "urls": [],
+        "mentions": [],
+        "channels": [],
+        "md": [
+          {
+            "type": "PARAGRAPH",
+            "value": [
+              {
+                "type": "PLAIN_TEXT",
+                "value": "343532535"
+              }
+            ]
+          }
+        ],
+        "_updatedAt": {
+          "$date": 1732358386537
+        }
+      }
+    ]
+  }
+}
+// 消息3----a[]
+{
+  "msg": "changed",
+  "collection": "stream-notify-user",
+  "id": "id",
+  "fields": {
+    "eventName": "jAfXDKCQoEydreNpi/subscriptions-changed",
+    "args": [
+      "updated",
+      {
+        "_id": "ZRuLyj2HbTcdQXamY",
+        "open": true,
+        "alert": false,
+        "unread": 0,
+        "userMentions": 0,
+        "groupMentions": 0,
+        "ts": {
+          "$date": 1732293708012
+        },
+        "rid": "giT7Qfy76GRfJWF7u",
+        "name": "12321123123",
+        "fname": "12321123123",
+        "t": "p",
+        "u": {
+          "_id": "jAfXDKCQoEydreNpi",
+          "username": "test222",
+          "name": "test222"
+        },
+        "_updatedAt": {
+          "$date": 1732358386633
+        },
+        "ls": {
+          "$date": 1732358386633
+        }
+      }
+    ]
+  }
+}
+// 消息4----a[]
+{
+  "msg": "changed",
+  "collection": "stream-notify-user",
+  "id": "id",
+  "fields": {
+    "eventName": "jAfXDKCQoEydreNpi/rooms-changed",
+    "args": [
+      "updated",
+      {
+        "_id": "giT7Qfy76GRfJWF7u",
+        "fname": "12321123123",
+        "customFields": {},
+        "description": "123123",
+        "broadcast": false,
+        "encrypted": false,
+        "name": "12321123123",
+        "t": "p",
+        "usersCount": 4,
+        "u": {
+          "_id": "xFWck5bgzRWRs9Pri",
+          "username": "jindun"
+        },
+        "ts": {
+          "$date": 1731513413917
+        },
+        "ro": false,
+        "default": false,
+        "sysMes": true,
+        "_updatedAt": {
+          "$date": 1732358386636
+        },
+        "lastMessage": {
+          "_id": "5irE67FQL2T5bsKJr",
+          "rid": "giT7Qfy76GRfJWF7u",
+          "msg": "343532535",
+          "ts": {
+            "$date": 1732358386454
+          },
+          "u": {
+            "_id": "jAfXDKCQoEydreNpi",
+            "username": "test222",
+            "name": "test222"
+          },
+          "urls": [],
+          "mentions": [],
+          "channels": [],
+          "md": [
+            {
+              "type": "PARAGRAPH",
+              "value": [
+                {
+                  "type": "PLAIN_TEXT",
+                  "value": "343532535"
+                }
+              ]
+            }
+          ],
+          "_updatedAt": {
+            "$date": 1732358386537
+          }
+        },
+        "lm": {
+          "$date": 1732358386454
+        }
+      }
+    ]
+  }
+}
+// 消息5----[]
+{
+  "msg": "method",
+  "id": "26",
+  "method": "stream-notify-room",
+  "params": [
+    "giT7Qfy76GRfJWF7u/user-activity",
+    "test222",
+    [],
+    {}
+  ]
+}
+// 消息6----a[]
+{
+  "msg": "result",
+  "id": "26"
+}
+// 消息7----a[]
+{
+  "msg": "updated",
+  "methods": [
+    "26"
+  ]
+}
+// 消息8----a[]
+{
+    "msg": "changed",
+    "collection": "stream-notify-room",
+    "id": "id",
+    "fields": {
+        "eventName": "giT7Qfy76GRfJWF7u/user-activity",
+        "args": [
+            "test222",
+            [],
+            {}
+        ]
+    }
+}
+```
+
+**消息1：`subscriptions-changed` (1):** 这条消息更新了客户端 A 的订阅信息。 其中 `ls` (last seen) 字段更新为消息发送的时间戳，表示客户端 A 已经“看到”了这条新消息，因此未读消息数 `unread` 仍然为 0。
+
+**消息2：`room-messages`:** 这条消息将客户端 A 刚刚发送的消息添加到 `stream-room-messages` 集合中。 这是客户端 A 自己发送的消息，因此它也需要在本地显示出来。
+
+**消息3：`subscriptions-changed` (2):** 这条消息和第一条类似，也是更新订阅信息，`ls` 字段再次更新，时间戳略有变化，这可能是由于处理消息的微小时间差导致的。
+
+**消息4：`rooms-changed`:** 这条消息更新了聊天室的信息，最重要的是更新了 `lastMessage` 字段，将客户端 A 刚刚发送的消息设置为最后一条消息。 这会更新聊天室列表的预览。
+
+**消息5：`stream-notify-room` (method call):** 这是一个 DDP 方法调用，而不是数据更新通知。客户端 A 调用 `stream-notify-room` 方法，参数包括房间 ID (`giT7Qfy76GRfJWF7u`)、事件名称 (`user-activity`)、用户名 (`test222`) 以及一些额外的参数（空数组和空对象）。 这条消息会发送到服务器，服务器再将其广播给房间内的其他客户端，通知它们客户端 A 的用户活动。
+
+**消息6：`result`:** 这是对之前方法调用的响应。 `id` 为 26，与方法调用消息的 `id` 对应。 表示方法调用成功完成。
+
+**消息7：`updated`:** 这条消息确认方法调用已经更新完成。 `methods` 数组包含已更新的方法 ID，这里也是 26。
+
+**消息8：`stream-notify-room` (changed):** 这条消息更新了 `stream-notify-room` 集合。 虽然和之前的 `stream-notify-room` 方法调用看起来很像，但这实际上是服务器广播给客户端 A 的 _响应_。 因为客户端 A 也订阅了 `stream-notify-room` 集合的更新，所以它也会收到这条消息，用于更新自身的 UI 状态 (例如停止显示自己的打字指示器)。
+
+### 接受消息
+
+A和B和C分别连接了Rocketchat的服务器，三个客户端目前位于同一个聊天室。 A客户端发消息，B和C每个客户端都会接收到5个长连接消息，如下所示：&#x20;
+
+```javascript
+// 消息1----a[]
+{
+    "msg": "changed",
+    "collection": "stream-notify-room",
+    "id": "id",
+    "fields": {
+        "eventName": "giT7Qfy76GRfJWF7u/user-activity",
+        "args": [
+            "test111",
+            [],
+            {}
+        ]
+    }
+}
+// 消息2----a[]
+{
+    "msg": "changed",
+    "collection": "stream-notify-room",
+    "id": "id",
+    "fields": {
+        "eventName": "giT7Qfy76GRfJWF7u/user-activity",
+        "args": [
+            "test111",
+            [],
+            {}
+        ]
+    }
+}
+// 消息3----a[]
+{
+    "msg": "changed",
+    "collection": "stream-room-messages",
+    "id": "id",
+    "fields": {
+        "eventName": "giT7Qfy76GRfJWF7u",
+        "args": [
+            {
+                "_id": "DEGweYCRwrejsSkaM",
+                "rid": "giT7Qfy76GRfJWF7u",
+                "msg": "232131",
+                "ts": {
+                    "$date": 1732355626279
+                },
+                "u": {
+                    "_id": "DX3AynTpW68px8Mtz",
+                    "username": "test111",
+                    "name": "test111"
+                },
+                "urls": [],
+                "mentions": [],
+                "channels": [],
+                "md": [
+                    {
+                        "type": "PARAGRAPH",
+                        "value": [
+                            {
+                                "type": "PLAIN_TEXT",
+                                "value": "232131"
+                            }
+                        ]
+                    }
+                ],
+                "_updatedAt": {
+                    "$date": 1732355627591
+                }
+            }
+        ]
+    }
+}
+// 消息4----a[]
+{
+    "msg": "changed",
+    "collection": "stream-notify-user",
+    "id": "id",
+    "fields": {
+        "eventName": "xFWck5bgzRWRs9Pri/rooms-changed",
+        "args": [
+            "updated",
+            {
+                "_id": "giT7Qfy76GRfJWF7u",
+                "fname": "12321123123",
+                "customFields": {},
+                "description": "123123",
+                "broadcast": false,
+                "encrypted": false,
+                "name": "12321123123",
+                "t": "p",
+                "usersCount": 4,
+                "u": {
+                    "_id": "xFWck5bgzRWRs9Pri",
+                    "username": "jindun"
+                },
+                "ts": {
+                    "$date": 1731513413917
+                },
+                "ro": false,
+                "default": false,
+                "sysMes": true,
+                "_updatedAt": {
+                    "$date": 1732355627956
+                },
+                "lastMessage": {
+                    "_id": "DEGweYCRwrejsSkaM",
+                    "rid": "giT7Qfy76GRfJWF7u",
+                    "msg": "232131",
+                    "ts": {
+                        "$date": 1732355626279
+                    },
+                    "u": {
+                        "_id": "DX3AynTpW68px8Mtz",
+                        "username": "test111",
+                        "name": "test111"
+                    },
+                    "urls": [],
+                    "mentions": [],
+                    "channels": [],
+                    "md": [
+                        {
+                            "type": "PARAGRAPH",
+                            "value": [
+                                {
+                                    "type": "PLAIN_TEXT",
+                                    "value": "232131"
+                                }
+                            ]
+                        }
+                    ],
+                    "_updatedAt": {
+                        "$date": 1732355627591
+                    }
+                },
+                "lm": {
+                    "$date": 1732355626279
+                }
+            }
+        ]
+    }
+}
+// 消息5----a[]
+{
+    "msg": "changed",
+    "collection": "stream-notify-user",
+    "id": "id",
+    "fields": {
+        "eventName": "xFWck5bgzRWRs9Pri/subscriptions-changed",
+        "args": [
+            "updated",
+            {
+                "_id": "otckiNwfSX2y9uRZQ",
+                "open": true,
+                "alert": true,
+                "unread": 0,
+                "userMentions": 0,
+                "groupMentions": 0,
+                "ts": {
+                    "$date": 1731513413917
+                },
+                "rid": "giT7Qfy76GRfJWF7u",
+                "name": "12321123123",
+                "fname": "12321123123",
+                "t": "p",
+                "u": {
+                    "_id": "xFWck5bgzRWRs9Pri",
+                    "username": "jindun"
+                },
+                "ls": {
+                    "$date": 1732355456689
+                },
+                "_updatedAt": {
+                    "$date": 1732355628628
+                },
+                "roles": [
+                    "owner"
+                ]
+            }
+        ]
+    }
+}
+```
+
+* **消息1和消息2：**&#x8FD9;两条相同的消息更新了 `stream-notify-room` 集合。它们表示房间内的用户活动，特别是打字指示器。`giT7Qfy76GRfJWF7u` 是房间 ID，`user-activity` 是事件名称，`test111` 是用户名，空数组和空对象可能代表额外的活动数据（例如，没有其他并发活动）。重复的消息可能是 bug 或冗余发送。
+* **消息3：**&#x8FD9;条消息更新了 `stream-room-messages` 集合，其中包含房间的实际聊天消息。`args` 包含消息对象本身，包括其 ID、房间 ID (`rid`)、内容 (`msg`)、时间戳 (`ts`)、发送者信息 (`u`) 和其他元数据。这是核心消息传递机制。
+* **消息4：**&#x8FD9;条消息更新了用户 `xFWck5bgzRWRs9Pri`（可能是客户端 B 或 C）的 `stream-notify-user` 集合。它表示房间信息的变化，由新消息触发。这里的关键信息是房间对象中更新的 `lastMessage` 字段。这允许客户端使用最新的消息片段更新其房间列表预览，而无需获取整个消息历史记录。
+* **消息5：**&#x8FD9;条消息也更新了 `stream-notify-user` 集合，特别是用户对房间的订阅数据。这里关键的变化可能是 `unread` 计数，它可能会更新以反映用户已看到新消息（如果用户当前未关注该房间，则可能会增加）。订阅对象中的其他字段，例如 `ls`（上次查看），也可能会更新。
 
 ## 总结
 
