@@ -35,7 +35,17 @@ Streamer是Rocketchat后端管理订阅的核心数据结构。
 
 
 
+### streamAll
 
+* allowWrite('none')
+* allowRead('all')
+* allowEmit('all)
+
+允许任意客户端订阅。
+
+**监听的事件如下：**
+
+<figure><img src="../.gitbook/assets/image (45).png" alt=""><figcaption></figcaption></figure>
 
 ### 问题
 
