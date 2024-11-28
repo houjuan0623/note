@@ -110,6 +110,12 @@ this.onEvent('stream', ([streamer, eventName, args]): void => {
 
 比如我启动了n个ddp-streamer服务，这个时候不同的ddp-streamer会维护不同的用户长连接，比如提醒已登录的用户某个用户登录上来了，就需要使用emit，将事件broadcast给各个ddp-streamer，各个ddp-streamer接收到以后在内部处理相应的逻辑。
 
+**本来想的是，既然监听每一个房间了，按理说，A新增一个和B的房间，C应该收到长连接消息啊。**
+
+非也，因为新增的房间在触发事件之前没有加入到监听器中。
+
+
+
 ## notification
 
 ### 数据结构
