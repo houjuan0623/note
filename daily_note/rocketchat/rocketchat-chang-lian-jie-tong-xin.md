@@ -59,6 +59,8 @@ a["{\"msg\":\"updated\",\"methods\":[\"5\"]}"]
    1. `["{"msg":"sub","id":"QgQANgCw3majdpuG8","name":"stream-notify-user","params":["xFWck5bgzRWRs9Pri/message",{"useCollection":false,"args":[]}]}"]`
 2. stream-notify-user subscriptions-changed
    1. `["{"msg":"sub","id":"Q76g6tzAb6pkAnTAa","name":"stream-notify-user","params":["xFWck5bgzRWRs9Pri/subscriptions-changed",{"useCollection":false,"args":[]}]}"]`
+3. stream-roles roles
+   1. `"{"msg":"sub","id":"kWKfEmQnXbbxAMbH6","name":"stream-roles","params":["roles",{"useCollection":false,"args":[]}]}"`
 
 ## stream-notify-all
 
