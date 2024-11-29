@@ -53,7 +53,12 @@ a["{\"msg\":\"result\",\"id\":\"5\",\"result\":{\"id\":\"xFWck5bgzRWRs9Pri\",\"t
 a["{\"msg\":\"updated\",\"methods\":[\"5\"]}"]
 ```
 
+### 登录紧跟的长连接消息
 
+1. stream-notify-user message
+   1. `["{"msg":"sub","id":"QgQANgCw3majdpuG8","name":"stream-notify-user","params":["xFWck5bgzRWRs9Pri/message",{"useCollection":false,"args":[]}]}"]`
+2. stream-notify-user subscriptions-changed
+   1. `["{"msg":"sub","id":"Q76g6tzAb6pkAnTAa","name":"stream-notify-user","params":["xFWck5bgzRWRs9Pri/subscriptions-changed",{"useCollection":false,"args":[]}]}"]`
 
 ## stream-notify-all
 
