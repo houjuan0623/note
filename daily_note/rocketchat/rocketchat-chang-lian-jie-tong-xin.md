@@ -109,6 +109,10 @@ a["{\"msg\":\"ready\",\"subs\":[\"XbxsDNjJo2Zy4pREG\"]}"]
 a["{\"msg\":\"ready\",\"subs\":[\"h8oShnPzgS2vmPF9d\"]}"]
 ```
 
+```
+a["{\"msg\":\"changed\",\"collection\":\"stream-notify-logged\",\"id\":\"id\",\"fields\":{\"eventName\":\"user-status\",\"args\":[[\"xFWck5bgzRWRs9Pri\",\"jindun\",1,null]]}}"]
+```
+
 4. stream-notify-logged
 
 ```
@@ -267,6 +271,10 @@ a["{\"msg\":\"ready\",\"subs\":[\"K3JfJStcFYntS24jh\"]}"]
 
 ```
 a["{\"msg\":\"ready\",\"subs\":[\"sHY2YPFcAD27wDqRS\"]}"]
+```
+
+```
+a["{\"msg\":\"changed\",\"collection\":\"stream-notify-user\",\"id\":\"id\",\"fields\":{\"eventName\":\"xFWck5bgzRWRs9Pri/userData\",\"args\":[{\"diff\":{\"_updatedAt\":{\"$date\":1733155983855},\"status\":\"online\",\"statusConnection\":\"online\"},\"unset\":{},\"type\":\"updated\"}]}}"]
 ```
 
 20. stream-notify-logged
