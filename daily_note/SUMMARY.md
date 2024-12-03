@@ -20,12 +20,12 @@
 
 ## 在ubuntu上开发时的一些配置文件 <a href="#develop_in_ubuntu" id="develop_in_ubuntu"></a>
 
-* [pm2\_config](develop\_in\_ubuntu/pm2\_config.md)
-* [ngin.conf](develop\_in\_ubuntu/ngin.conf.md)
+* [pm2\_config](develop_in_ubuntu/pm2_config.md)
+* [ngin.conf](develop_in_ubuntu/ngin.conf.md)
 
 ## 在ubuntu上部署时的一些配置文件 <a href="#deploy_in_ubuntu" id="deploy_in_ubuntu"></a>
 
-* [nginx.conf](deploy\_in\_ubuntu/nginx.conf.md)
+* [nginx.conf](deploy_in_ubuntu/nginx.conf.md)
 
 ## Rocketchat
 
@@ -57,3 +57,7 @@
 ## Molecular
 
 * [Node\&Broker\&Service](molecular-1/node-and-broker-and-service.md)
+
+## 360培训
+
+* [12-03](360-pei-xun/12-03.md)
