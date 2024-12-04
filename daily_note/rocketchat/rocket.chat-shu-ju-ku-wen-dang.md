@@ -479,6 +479,7 @@ sessions作用：
 * 专门存储已认证用户的会话信息。
 * 每个文档代表一个用户的特定会话，包含会话 ID、用户 ID、连接信息、登录时间、上次活动时间等。
 * 用于管理用户的登录状态、实现多设备登录、记录用户活动历史等功能。
+* id字段是和ddp-streamer service中生成的session id（client — session = 1 — 1）绑定的。
 
 ### About OAUTH
 
