@@ -24,7 +24,7 @@ tree shaking能够帮助我们有效减少代码体积。
 
 如果开发人员认为该函数的调用过程/该函数没有副作用，就添加 `/*#PURE*/。`
 
-<figure><img src=".gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/image (1) (1).png" alt=""><figcaption></figcaption></figure>
 
 接下来我们看一下react框架制定者是怎样思考的？
 

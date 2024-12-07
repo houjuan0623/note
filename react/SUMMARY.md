@@ -5,4 +5,8 @@
   * [element和dom之间的关系](shen-me-shi-react-element/element-he-dom-zhi-jian-de-guan-xi.md)
 * [什么是fiber对象？](shen-me-shi-fiber-dui-xiang/README.md)
   * [fiber和element之间的关系](shen-me-shi-fiber-dui-xiang/fiber-he-element-zhi-jian-de-guan-xi.md)
+  * [列举一些DOM昂贵的操作](shen-me-shi-fiber-dui-xiang/lie-ju-yi-xie-dom-ang-gui-de-cao-zuo.md)
 * [tree shaking](page.md)
+* [双缓冲](shuang-huan-chong.md)
+* [优先级调度 (Lanes)](you-xian-ji-diao-du-lanes.md)
+* [Reconciliation (协调)](reconciliation-xie-tiao.md)
