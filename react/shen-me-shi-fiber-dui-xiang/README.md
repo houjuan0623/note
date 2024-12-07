@@ -12,6 +12,8 @@ React 使用 Fiber 架构来实现更灵活和可控的渲染过程。Fiber 可�
 
 [源码位置](https://github.com/facebook/react/blob/v18.3.1/packages/react-reconciler/src/ReactFiber.new.js#L118)
 
+注意**FiberNode就是Fiber**。 每个 `FiberNode` 实例都代表一个 Fiber
+
 ```javascript
 function FiberNode(
   tag: WorkTag,
