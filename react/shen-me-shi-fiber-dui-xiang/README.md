@@ -215,9 +215,35 @@ React 会比较新旧两个列表的 `key` 值。它会发现：
 
 请注&#x610F;**`key` 帮助 React 识别哪些节点需要更新，从而最大程度地复用 DOM 节点。** 这带来的优化主要体现在减少不必要的 DOM 更新，而不是减少操作步骤的数量。（[原因参考此文](lie-ju-yi-xie-dom-ang-gui-de-cao-zuo.md)）
 
+### Question: flags作用是什么？
 
+`FiberNode` 中的 `flags` 属性用于存储与该 Fiber 节点相关的标志位，这些标志位控制着 React 的协调（Reconciliation）和渲染过程。不同的标志位代表不同的含义，它们共同决定了 Fiber 节点该如何处理以及如何更新对应的组件或 DOM 元素。
 
+`flags` 使用二进制位运算来存储多个标志，每个标志位代表一种特定的状态或行为。这样可以高效地存储和检查多个标志，而无需使用多个属性。
 
+以下是 `flags` 属性中一些重要的标志位及其作用：
+
+* **Placement:** 表示该 Fiber 节点需要被插入到 DOM 树中。这通常发生在组件首次挂载或在列表中重新排序时。 `Placement` 标志会在 commit 阶段被处理，React 会将对应的 DOM 元素插入到正确的位置。
+* **Update:** 表示该 Fiber 节点的 props 或 state 发生了变化，需要更新对应的组件或 DOM 元素。 `Update` 标志会在 `beginWork` 阶段被设置，并在 `completeWork` 阶段生成相应的 effect，最终在 commit 阶段执行更新操作。
+* **Deletion:** 表示该 Fiber 节点需要从 DOM 树中移除。这通常发生在组件卸载时。`Deletion` 标志会在 commit 阶段被处理，React 会将对应的 DOM 元素从 DOM 树中移除。
+* **Passive:** 表示该 Fiber 节点包含 passive effect。Passive effect 是指不会导致 DOM 更新的副作用，例如 `useEffect` 的一些用法。 `Passive` effect 会在 commit 阶段的 passive effect 阶段执行。
+* **PlacementDEV:** 这是一个开发模式下使用的标志，用于调试。
+* **Snapshot:** 表示需要为此 Fiber 节点创建一个快照。在某些情况下，例如 Suspense 组件的回退渲染，React 需要保存 Fiber 树的快照以便稍后恢复。
+* **Hydrating:** 表示当前正在进行 hydration 操作。Hydration 是指将服务端渲染的 HTML 与客户端的 React 组件进行匹配的过程。
+* **HydratingSuspense:** 表示当前正在进行 hydration 操作，并且遇到了 Suspense 组件。
+* **Callback:** 表示该 Fiber 节点包含回调函数，需要在 commit 阶段执行。
+* **DidCapture:** 表示该 Fiber 节点的子树中发生了错误，需要进行错误边界处理。
+* **Ref:** 表示该 Fiber 节点包含 ref，需要在 commit 阶段处理。
+* **ContentReset:** 表示该 Fiber 节点的子节点需要重置内容。这通常发生在 Suspense 组件的内容发生变化时。
+* **Incomplete:** 表示该 Fiber 节点的渲染工作尚未完成。
+* **ForceUpdateForLegacySuspense:** 用于支持旧版 Suspense 组件的强制更新。
+* **StaticMask:** 静态标志掩码，用于标记不会随渲染改变的标志。
+
+**`flags` 的使用:**
+
+在 React 的协调过程中，`flags` 属性的值会被不断更新，以反映 Fiber 节点的状态变化。例如，当组件的 props 发生变化时，React 会将 `Update` 标志添加到 Fiber 节点的 `flags` 属性中。在 commit 阶段，React 会根据 `flags` 属性的值来执行相应的 DOM 操作或副作用。
+
+`flags` 属性的巧妙使用使得 React 能够高效地跟踪 Fiber 树的状态变化，并在适当的时机执行更新操作，从而实现高性能的渲染。
 
 
 
