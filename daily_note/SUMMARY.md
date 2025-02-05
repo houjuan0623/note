@@ -13,6 +13,8 @@
 * [🩸 阅读一篇文章，生成自己的文章](learn-from-source-code/yue-du-yi-pian-wen-zhang-sheng-cheng-zi-ji-de-wen-zhang.md)
 * [☺️ csr 和 ssr 对比](learn-from-source-code/csr-he-ssr-dui-bi.md)
 * [☺️ typescript decorators](learn-from-source-code/typescript-decorators.md)
+* [🔘 单点登录 sso](learn-from-source-code/dan-dian-deng-lu-sso.md)
+* [数据同步](learn-from-source-code/shu-ju-tong-bu.md)
 
 ## 弄清已经存在的OmniChannel配置 <a href="#omnichannel" id="omnichannel"></a>
 

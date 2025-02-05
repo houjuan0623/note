@@ -6,7 +6,7 @@ icon: sitemap
 
 <figure><img src="../.gitbook/assets/image (32).png" alt=""><figcaption><p>官方的微服务架构</p></figcaption></figure>
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption><p>Rocketchat 官方为服务架构补充</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1) (1).png" alt=""><figcaption><p>Rocketchat 官方为服务架构补充</p></figcaption></figure>
 
 * 每个serice中都会调用registerModel函数（猜测registerModel中的数据库是各个service需要的数据库的集合），相当于每个service都要操作数据库。然后通过数据库对象代理就可以访问数据库了。
 * 每个service中都会使用 api.setBroker(broker) 将自身使用的broker设置为molecular的netWorkBroker。
