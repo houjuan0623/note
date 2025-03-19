@@ -47,6 +47,10 @@
 * [🐞 执行到Not migrating, already at version 304不再继续执行。](rocketchat-fang-kai-guo-cheng-zhong-de-yi-xie-wen-ti/zhi-xing-dao-not-migrating-already-at-version-304-bu-zai-ji-xu-zhi-xing.md)
 * [为什么有些函数直接返回undefinedd](rocketchat-fang-kai-guo-cheng-zhong-de-yi-xie-wen-ti/wei-shen-me-you-xie-han-shu-zhi-jie-fan-hui-undefinedd.md)
 
+## 分布式
+
+* [分布式是什么？微服务是什么？](fen-bu-shi/fen-bu-shi-shi-shen-me-wei-fu-wu-shi-shen-me.md)
+
 ## molecular
 
 * [关于 molecular 服务发现问题](molecular/guan-yu-molecular-fu-wu-fa-xian-wen-ti.md)
@@ -63,7 +67,3 @@
 ## 360培训
 
 * [12-03](360-pei-xun/12-03.md)
-
-## 分布式
-
-* [分布式是什么？微服务是什么？](fen-bu-shi/fen-bu-shi-shi-shen-me-wei-fu-wu-shi-shen-me.md)
