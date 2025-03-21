@@ -67,3 +67,8 @@
 ## 并发
 
 * [并发-待完成](bing-fa/bing-fa-dai-wan-cheng.md)
+
+## 数据库
+
+* [关于完整性约束和性能优化的误区](shu-ju-ku/guan-yu-wan-zheng-xing-yue-shu-he-xing-neng-you-hua-de-wu-qu.md)
+* [Page 1](shu-ju-ku/page-1.md)
