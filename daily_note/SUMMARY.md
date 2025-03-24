@@ -71,7 +71,7 @@
 ## 数据库
 
 * [关于完整性约束和性能优化的误区](shu-ju-ku/guan-yu-wan-zheng-xing-yue-shu-he-xing-neng-you-hua-de-wu-qu.md)
-* [数据库正确性](shu-ju-ku/shu-ju-ku-zheng-que-xing.md)
+* [数据库分析设计](shu-ju-ku/shu-ju-ku-fen-xi-she-ji.md)
 
 ## kafka
 
