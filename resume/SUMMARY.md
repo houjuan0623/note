@@ -8,3 +8,7 @@
 * [OS 源码](resume/os-yuan-ma.md)
 * [nodejs 完全掌握](resume/nodejs-wan-quan-zhang-wo.md)
 * [MySQL证书](resume/mysql-zheng-shu.md)
+
+***
+
+* [未来的打算](wei-lai-de-da-suan.md)
