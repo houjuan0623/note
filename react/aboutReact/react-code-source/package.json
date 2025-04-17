@@ -10,6 +10,7 @@
   "devDependencies": {
     "html-webpack-plugin": "^5.5.1",
     "ts-loader": "^9.4.2",
+    "typedoc": "^0.28.2",
     "webpack": "^5.83.1",
     "webpack-cli": "^5.1.1",
     "webpack-dev-server": "^4.15.0"
