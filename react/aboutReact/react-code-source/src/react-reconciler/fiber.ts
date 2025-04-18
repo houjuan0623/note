@@ -10,7 +10,11 @@ import { Container } from "@/react-dom/hostConfig";
 import { Lane, Lanes, NoLane, NoLanes } from "./fiberLanes";
 import { Effect } from "./fiberHooks";
 import { CallbackNode } from "scheduler";
-
+/**
+ * fiber对应的数据结构。
+ * 
+ * React 使用 Fiber 架构来实现更灵活和可控的渲染过程。Fiber 可以理解为一个工作单元，代表一个组件的实例或者一个渲染任务。每个 Fiber 存储了组件的相关信息，例如类型、属性、子节点等等。通过 Fiber，React 可以将渲染工作分解成小的单元，并在需要时暂停、恢复或优先处理某些任务，从而提高用户体验，避免卡顿。
+ */
 export class FiberNode {
   type: any;
   tag: WorkTag;
@@ -25,6 +29,7 @@ export class FiberNode {
   index: number;
 
   memoizedProps: Props | null;
+  /** memoizedState 记录当前fiber对应的hook链表。`currentlyRenderingFiber.memoizedState = workInProgressHook;` */
   memoizedState: any;
   alternate: FiberNode | null;
   flags: Flags;

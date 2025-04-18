@@ -3,7 +3,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin')//引入模板组件
 
 module.exports = {
     mode: 'development',//开发模式
-    entry: './src/main1.tsx',//入口文件地址
+    entry: './src/main.tsx',//入口文件地址
     output: {
         path: path.resolve(__dirname, "./dist"),//出口文件，即打包后的文件存放地址
         filename: 'bundle.js' //文件名

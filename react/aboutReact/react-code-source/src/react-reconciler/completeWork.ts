@@ -20,7 +20,7 @@ function markUpdate(fiber: FiberNode) {
   fiber.flags |= Update;
 }
 
-export const completeWork = (wip: FiberNode): void => {
+export const completeWork = (wip: FiberNode): void | null => {
   // 递归中的归
   // debugger
   const newProps = wip.pendingProps;

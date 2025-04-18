@@ -16,14 +16,25 @@ import {
   UpdateQueue,
 } from "./updateQueue";
 import { scheduleUpdateOnFiber } from "./workLoop";
-
-let currentlyRenderingFiber: FiberNode | null = null;
-let workInProgressHook: Hook | null = null;
-let currentHook: Hook | null = null;
+/**
+ * 当前处理的函数式组件对应的fiber对象
+ */
+export let currentlyRenderingFiber: FiberNode | null = null; // export is not required
+/**
+ * workInProgressHook指向hook链表。
+ */
+export let workInProgressHook: Hook | null = null;
+/**
+ * 当前正在处理的hook函数对应的hook数据结构。
+ */
+export let currentHook: Hook | null = null;
 let renderLane: Lane = NoLane;
 
 const { currentDispatcher } = internals;
-interface Hook {
+/**
+ * 每次调用hook(useState, useEffect等)函数，都会产生一个hook数据结构
+ */
+export interface Hook {
   memoizedState: any;
   updateQueue: unknown;
   baseState: any;
@@ -70,7 +81,7 @@ export function renderWithHooks(wip: FiberNode, lane: Lane) {
   // FC render
   const children = Component(props);
 
-  // 重置操作
+  // 重置操作，防止在不正确的位置调用useState
   currentlyRenderingFiber = null;
   workInProgressHook = null;
   currentHook = null;
@@ -282,8 +293,16 @@ function updateWorkInProgresHook(): Hook {
   }
   return workInProgressHook;
 }
-
-function mountState<State>(
+/**
+ * 
+ * @param initialState 
+ * @returns 
+ * 
+ * 当useState传入的是函数的时候，其返回值作为memoizedState。
+ * 
+ * 当useState传入的是值的时候，其值作为memoizedState。
+ */
+export function mountState<State>(
   initialState: (() => State) | State
 ): [State, Dispatch<State>] {
   // 找到当前useState对应的hook数据
@@ -304,7 +323,13 @@ function mountState<State>(
   return [memoizedState, dispatch];
 }
 
-function dispatchSetState<State>(
+/**
+ * 
+ * @param fiber 
+ * @param updateQueue 
+ * @param action 调用setState的时候传入的值
+ */
+export function dispatchSetState<State>(
   fiber: FiberNode,
   updateQueue: UpdateQueue<State>,
   action: Action<State>
@@ -315,7 +340,7 @@ function dispatchSetState<State>(
   scheduleUpdateOnFiber(fiber, lane);
 }
 
-function mountWorkInProgresHook(): Hook {
+export function mountWorkInProgresHook(): Hook {
   const hook: Hook = {
     memoizedState: null,
     updateQueue: null,
@@ -326,9 +351,13 @@ function mountWorkInProgresHook(): Hook {
   if (workInProgressHook === null) {
     // mount时 第一个hook
     if (currentlyRenderingFiber === null) {
+      // 这里想要表达的是不知道编程人员在组件外的什么地方调用了useState，所以抛出错误
+      // 这两个判断能够保证用户必须在函数式组件中调用hook
       throw new Error("请在函数组件内调用hook");
     } else {
+      // 指向hook链表。
       workInProgressHook = hook;
+      // 通过memoizedState建立fiber和hook链表之间的关系。
       currentlyRenderingFiber.memoizedState = workInProgressHook;
     }
   } else {

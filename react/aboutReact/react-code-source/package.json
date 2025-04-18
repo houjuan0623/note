@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "dev": "webpack serve --config webpack.dev.js",
-    "generatedoc": "typedoc"
+    "generatedoc": "rm -rf ./react-doc & typedoc"
   },
   "author": "",
   "license": "ISC",

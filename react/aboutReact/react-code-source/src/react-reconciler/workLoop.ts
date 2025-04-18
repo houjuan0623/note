@@ -44,13 +44,66 @@ const RootInComplete = 1;
 const RootCompleted = 2;
 // TODO render报错
 
-function prepareFreshStack(root: FiberRootNode, lane: Lane) {
+/**
+ * react render流程的起始点 。
+ * @param root 
+ * @param lane 
+ */
+export function prepareFreshStack(root: FiberRootNode, lane: Lane) {
 	root.finishedLane = NoLane;
 	root.finishedWork = null;
 	workInProgress = createWorkInProgress(root.current, {});
 	wipRootRenderLane = lane;
 }
-
+/**
+ * 发起更新，并告诉 React 应该以什么优先级来处理这个更新
+ * @param fiber 
+ * @param lane 
+ * 
+ * 1. 接收更新请求: 当组件调用 setState方法触发状态更新时，React 会调用 scheduleUpdateOnFiber，并将触发更新的 fiber 节点和优先级信息传递给它。
+ * 2. 标记更新: scheduleUpdateOnFiber 函数会找到与该 fiber 节点关联的根节点（FiberRoot），并将更新的优先级（lane）合并到根节点的 pendingLanes 中。pendingLanes 是一个位掩码，用于跟踪所有待处理的更新。
+ * 3. 调度更新:  scheduleUpdateOnFiber 最终会调用 ensureRootIsScheduled 函数，以确保根节点上的更新被适当地调度。这意味着 React 会根据更新的优先级来决定何时以及如何执行更新。  ensureRootIsScheduled  可能会同步地（对于高优先级更新）或异步地（对于低优先级更新）调度更新。
+ * 
+ * 例如：
+ * 
+ * ```
+ * import React, { useState } from 'react';
+ * import { scheduleUpdateOnFiber } from './react-reconciler'; // 假设这是 React 内部
+ * const MyComponent = () => {
+ *   const [count, setCount] = useState(0);
+ * 
+ *   const handleClick = () => {
+ *   //  使用setState触发更新
+ *     setCount(count + 1);
+ *   };
+ *   const forceUpdate = () => {
+ *     // 获取当前组件对应的fiber
+ *     const fiber = (MyComponent.__reactFiber$internal || MyComponent.__reactFiber$); // 实际获取fiber的方法会更复杂，这里简化了
+ *     if (fiber) {
+ *       //  直接使用scheduleUpdateOnFiber 触发更新，实际开发中不建议直接调用
+ *       scheduleUpdateOnFiber(fiber, 1); // 假设 1 是一个优先级数值
+ *     }
+ *   }
+ * 
+ *   console.log('render', count);
+ * 
+ *   return (
+ *     <div>
+ *       <p>Count: {count}</p>
+ *       <button onClick={handleClick}>Increase Count</button>
+ *       <button onClick={forceUpdate}>Force Update</button>
+ *     </div>
+ *   );
+ * };
+ * export default MyComponent;
+ * ```
+ * 
+ * 在这个例子中：
+ * 1. 当用户点击 "Increase Count" 按钮时，setCount 函数会被调用。
+ * 2. setCount 内部会调用 scheduleUpdateOnFiber，并将 MyComponent 对应的 fiber 节点和更新的优先级传递给它。
+ * 3. scheduleUpdateOnFiber 会将这个更新添加到根节点的 pendingLanes 中，并调用 ensureRootIsScheduled 来调度更新。
+ * 4. React 最终会根据优先级来决定何时重新渲染组件，更新 count 的值，并更新 DOM。
+ */
 export function scheduleUpdateOnFiber(fiber: FiberNode, lane: Lane) {
 	// fiberRootNode
 	const root = markUpdateFromFiberToRoot(fiber);
@@ -59,7 +112,7 @@ export function scheduleUpdateOnFiber(fiber: FiberNode, lane: Lane) {
 }
 
 // schedule阶段入口
-function ensureRootIsScheduled(root: FiberRootNode) {
+export function ensureRootIsScheduled(root: FiberRootNode) {
 	const updateLane = getHighestPriorityLane(root.pendingLanes);
 	const existingCallback = root.callbackNode;
 

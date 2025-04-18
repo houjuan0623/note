@@ -50,34 +50,36 @@ export const createUpdateQueue = <State>() => {
  * 建立update队列
  * @param updateQueue 内部的pending指向维护更新队列的指针
  * @param update 待更新的update对象
- *
+ * 
  * pending === null 的含义： 当 pending 为 null 时，表示当前的更新队列是空的。也就是说，这是第一个被加入队列的更新。<br />
  * update.next = update 的作用： 此时，由于是第一个更新，我们需要创建一个只包含这一个元素的循环链表。因此，我们将 update 自身的 next 指针指向它自己。这样，就形成了一个长度为 1 的循环链表，如下图：<br />
+ * 
  * ```
- * // a的next指向自己a
+ * # a的next指向自己a
  * a <-> a
  * ^     |
  * |_____|
  * ```
+ * 
  * pending 更新: 接下来 updateQueue.shared.pending = update; 将 pending 指向这个唯一的更新，成为循环列表的头节点。<br />
  * pending !== null 的情况： 当 pending 不为 null 时，表示队列中已经有更新存在。此时，update 会被添加到队列的末尾，并更新链表的循环引用：
-
-update.next = pending.next;: 将新的 update 的 next 指针指向队列的第一个更新（因为 pending.next 指向第一个更新）。
-pending.next = update;: 将当前队列的最后一个更新（也就是 pending 所指向的那个更新）的 next 指针指向新的 update。
-updateQueue.shared.pending = update;: 将 pending 指向最新的更新。
-这样就实现了在原有的循环链表基础上添加新的更新，并维护了循环的结构，例如：
-```
-b -> a -> b
-^    |    |
-|____|____|
-
-```
-如果再加入一个c：
-```
-c -> b -> a -> c
-^              |
-|______________|
-```
+ * 
+ * - update.next = pending.next;: 将新的 update 的 next 指针指向队列的第一个更新（因为 pending.next 指向第一个更新）。</li>
+ * - pending.next = update;: 将当前队列的最后一个更新（也就是 pending 所指向的那个更新）的 next 指针指向新的 update。</li>
+ * - updateQueue.shared.pending = update;: 将 pending 指向最新的更新。</li>
+ * 
+ * 这样就实现了在原有的循环链表基础上添加新的更新，并维护了循环的结构，例如：
+ * ```
+ * b -> a -> b
+ * ^    |    |
+ * |____|____|
+ * ```
+ * 如果再加入一个c：
+ * ```
+ * c -> b -> a -> c
+ * ^              |
+ * |______________|
+ * ```
 c的next指向a，b的next指向c, pending更新为c
  */
 export const enqueueUpdate = <State>(

@@ -29,7 +29,16 @@ export interface DOMElement extends Element {
 export function updateFiberProps(node: DOMElement, props: Props) {
     node[elementPropsKey] = props;
 }
-
+/**
+ * 合并事件，在react中，所有的时间最终都绑定在容器根节点上。
+ * 
+ * React之所以要进行事件的合成，是为了：
+ * 1. 统一各个浏览器的表现。
+ * 2. React支持的不仅有浏览器，还有React Native，这里引入的事件合成机制是作为跨平台的中间层。
+ * @param container 
+ * @param eventType 
+ * @returns 
+ */
 export function initEvent(container: Container, eventType: string) {
     if (!validEventTypeList.includes(eventType)) {
         console.warn('当前不支持', eventType, '事件');
@@ -38,7 +47,9 @@ export function initEvent(container: Container, eventType: string) {
 
     console.log('初始化事件：', eventType);
 
+    // 将事件挂在container上。
     container.addEventListener(eventType, (e) => {
+        // 合成事件的核心实现
         dispatchEvent(container, eventType, e);
     });
 }
