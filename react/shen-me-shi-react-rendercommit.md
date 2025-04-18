@@ -2,10 +2,12 @@
 
 render可以被翻译为渲染，这个属于在react中是什么含义呢？commit又到底做了什么？
 
+在 React 中，"渲染" 这个词有点抽象，但是它实际上包含了两个主要阶段：Reconciliation (协调阶段) +  Commit (提交阶段)。
+
 **React 更新流程（Render + Commit 阶段）:**
 
 1. **触发更新**: 由 `setState`, `useState` 更新函数调用、props 变化、根节点的 `render` 调用等触发。
-2. **Render 阶段 (可中断):**
+2. **Reconciliation 阶段 (可中断):**
    * React 从触发更新的 Fiber Node 开始，遍历 Fiber 树。
    * 对于遍历到的每个 Fiber Node，如果它是组件节点，React 会调用其函数或 `render` 方法，**获取新的 React Elements**。
    * **Diffing**: React 将新生成的 Elements 与该 Fiber Node 在**上一次渲染时对应的旧 Fiber Node**（或者说“当前” Fiber 树中的节点）进行比较。
@@ -21,3 +23,10 @@ render可以被翻译为渲染，这个属于在react中是什么含义呢？com
    * React **遍历**这个新的 Fiber 树中所有**被标记了副作用**的节点。
    * **执行 DOM 更新**: 根据标记执行实际的 DOM 操作（`appendChild`, `removeChild`, `setAttribute` 等）。**这是用户提到的“将变化更新在HTML界面中”**。
    * **调用生命周期方法 / Hooks**: 调用 `componentDidMount`, `componentDidUpdate` 等生命周期方法，以及 `useEffect` 的 effect 函数（和之前的 cleanup 函数）。
+
+但是广义来讲，React 的渲染过程可以概括为：
+
+* **`createRoot`**: 创建根节点。
+* **`render`**: 调用 `render` 函数启动更新过程。
+* **Reconciliation**: 计算需要进行的更改（在内存中）。
+* **Commit**: 将这些更改应用到 DOM。
