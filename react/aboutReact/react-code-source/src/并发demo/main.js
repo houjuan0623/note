@@ -72,6 +72,7 @@ function scheduleCallback() {
 );
 
 function schedule() {
+	// 获取 React 调度器 (Scheduler) 内部任务队列中当前优先级最高的、即将被执行的那个任务节点 (Callback Node)。
 	const cbNode = getFirstCallbackNode();
 
 	// [{priority: 3}, {priority: 2}]
