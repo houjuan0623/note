@@ -62,10 +62,18 @@ function scheduleCallback() {
 			'低优先级'
 		][priority];
 		btn.onclick = () => {
-			workList.unshift({
-				count: 100,
-				priority: priority
-			});
+			if (priority === 2) {
+				debugger
+				workList.unshift({
+					count: 1,
+					priority: priority
+				});
+			} else {
+				workList.unshift({
+					count: 100,
+					priority: priority
+				});
+			}
 			schedule();
 		};
 	}
