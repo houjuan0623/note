@@ -63,9 +63,27 @@ icon: water
 
 屏幕刷新率为60HZ的时候，浏览器每帧存活时间约为16.67ms，React规定在这16.67ms内至多有[5ms](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js#L2417)用于执行task。
 
+```javascript
+function shouldYieldToHost() {
+  var timeElapsed = getCurrentTime() - startTime;
+
+  if (timeElapsed < frameInterval) {
+    // frameInterval默认为5ms
+    // The main thread has only been blocked for a really short amount of time;
+    // smaller than a single frame. Don't yield yet.
+    return false;
+  } // The main thread has been blocked for a non-negligible amount of time. We
+
+
+  return true;
+}
+```
+
 <figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption><p>图2</p></figcaption></figure>
 
 如图2所示，react任务最多执行5ms，超过5ms的情况下会通过return终止当前任务的执行，然后就会将执行权交给浏览器。
+
+由于5ms的限制，会产生一个任务执行完5ms以后并未执行完毕的情况，这个时候`workLoop` 返回 `true` ，`flushWork` 的 `finally` 块会调用 `schedulePerformWorkUntilDeadline()`。这个函数利用 `MessageChannel` (或其他异步机制) 的 `postMessage` 将一个**新的宏任务**放入事件循环队列。这个新任务就是去执行 `performWorkUntilDeadline`，而 `performWorkUntilDeadline` 的核心工作就是再次调用 `flushWork`。总之会利用浏览器的事件循环机制，将一个新的事件压入事件循环队列中。这样一来执行权就交给浏览器了。
 
 ### 死锁和活锁问题
 
@@ -75,5 +93,22 @@ icon: water
 
 活锁通常发生在多个单元都在积极地改变状态以响应对方，但整体无法前进。这里的任务是由 `workLoop` 单方面按优先级挑选和执行的，它们之间没有形成调度器层面的、互相响应导致空转的循环。
 
-e
+接下来我们来看一下，react并发是怎样处理饿死问题的。
+
+### 饿死
+
+解决饿死问题，依赖过期时间机制。
+
+即使一个任务是以 `LowPriority`（10秒超时）调度的，它的 `expirationTime` 在创建时就被确定了。随着时间的推移 (`currentTime` 增加)，这个 `expirationTime` 最终会被 `currentTime` 超过。
+
+一旦 `currentTime <= currentTask.expirationTime`，这个低优先级任务就“过期”了。根据上述 `workLoop` 的逻辑：
+
+* 过期的任务在 `taskQueue` 中的有效优先级提高了（因为它不再轻易因为 `shouldYieldToHost` 而被跳过）。
+* 同时，因为 `sortIndex` 基于 `expirationTime`，越接近过期的任务在队列中的排名也越靠前。
+
+因此，一个低优先级的任务（除了 `IdlePriority`）不会无限期地等待下去。只要时间足够长，它总会过期，一旦过期并且轮到它（到达队首），它就会被 `workLoop` 执行。这就**缓解**了饥饿现象。
+
+### 性能
+
+这个调度器实现的并发是单线程内，不是操作系统级别的抢占式多线程。因此，没有保存和恢复完整操作系统线程上下文所带来的高昂成本
 
