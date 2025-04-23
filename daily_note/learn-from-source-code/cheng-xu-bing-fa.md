@@ -110,5 +110,69 @@ function shouldYieldToHost() {
 
 ### 性能
 
-这个调度器实现的并发是单线程内，不是操作系统级别的抢占式多线程。因此，没有保存和恢复完整操作系统线程上下文所带来的高昂成本
+这个调度器实现的并发是单线程内依赖队列实现的并发，不是操作系统级别的抢占式多线程。因此，没有保存和恢复完整操作系统线程上下文所带来的高昂成本。但是它的性能上限受限于单个 CPU 核心的处理能力。
 
+所谓的上下文的切换，是指`workLoop` 因为时间片用完 (`shouldYieldToHost`) 或执行完一个任务后，通过 `requestHostCallback` (如 `MessageChannel` 或 `setTimeout`) 将执行权交还给事件循环，并在稍后恢复执行。或者是在 `workLoop` 内部从执行一个任务的回调切换到执行下一个。其成本主要是 JavaScript 函数调用、调用栈管理的开销，以及 `requestHostCallback` 机制本身的微小开销，远低于 OS 线程切换。
+
+所以上下文中并不传递状态，如果任务需要记录共享状态，需要程序员通过变成实现。React本身既是通过将状态保存在Fiber节点上实现的中断和恢复能力。
+
+#### 资源利用率
+
+* **CPU：** 它试图通过 `workLoop` 批量执行任务来利用 CPU，但同时通过 `shouldYieldToHost` **主动让步**，避免完全阻塞主线程，以保证 UI 的响应性。它追求的是**响应速度**和**有效利用空闲时间**（特别是 `IdlePriority` 任务），而不是让 CPU 持续满载运行taskQueue中的任务。
+* **内存：** 主要内存开销是存储在 `taskQueue` 和 `timerQueue` 中的任务对象。其大小取决于待处理任务的数量。堆操作是原地进行的，额外开销很小。任务回调函数自身的内存使用不受调度器直接控制。
+* **I/O：** 通过让步机制，调度器允许在 React 任务暂停时，事件循环有机会处理 I/O（网络、磁盘等）完成的回调。这使得 CPU 工作（React 计算）和 I/O 等待可以更好地重叠，**有助于提高应用整体的资源利用率**，但这依赖于任务回调函数自身是否触发了 I/O 操作。
+
+#### 延迟
+
+* **保证高优先级低延迟：** 调度器的设计明确旨在最小化高优先级任务（`ImmediatePriority`, `UserBlockingPriority`）的延迟。它们有很短的超时时间、在队列中优先级高，并且过期的任务能绕过某些让步检查，这为关键更新提供了良好的低延迟保证。
+* **低优先级任务延迟：** 低优先级任务可能会因为让步或被高优先级任务抢占而经历较长的延迟。这是为了保证整体响应性而做出的**有意权衡**。
+* **调度自身延迟：** 调度机制本身（入队、出队、事件循环延迟）会引入非常微小的延迟，通常可以忽略不计。
+
+### 响应性
+
+React通过下面的机制实现来确保浏览器能够处理自身的事件，进而提供用户友好的响应速度。
+
+* **协作式多任务与让步（Cooperative Multitasking / Yielding）：**
+  * **核心机制：** 这是保证响应性的最关键手段。调度器不是一次性执行完所有任务，而是在执行一小段时间后主动暂停。
+  * **`shouldYieldToHost()` 函数：** 在主执行循环 `workLoop` 中，会调用此函数。它检查自当前批次任务开始执行 (`startTime`) 以来是否已过去特定时间（`frameInterval`，默认为 5ms）。
+  * **`workLoop` 的让步行为：** 如果 `shouldYieldToHost()` 返回 `true`（表示时间片用完）并且当前任务尚未过期，`workLoop` 就会 `break`，停止处理当前事件循环 tick 中剩余的任务。
+  * **`requestHostCallback()` 异步调度：** 当 `workLoop` 让步或完成当前批次后，它会使用 `requestHostCallback`（通过 `MessageChannel`, `setImmediate` 或 `setTimeout` 实现）来异步地安排下一次 `flushWork` 的调用。这就在**工作块之间**将控制权交还给了浏览器的事件循环。
+* **时间分片（Time Slicing）：**
+  * 由 `frameInterval` 定义的时间间隔（默认 5ms）决定了调度器大约会连续执行多长时间的任务，然后才让步。这能将可能很长的计算任务（例如一个大型组件树的渲染）分解成多个小的时间片段来执行。
+* **优先级调度（Prioritization）：**
+  * 高优先级的任务（如 `ImmediatePriority`, `UserBlockingPriority`）会被放在 `taskQueue` 优先队列的前面。
+  * `workLoop` 总是尝试先执行队列中优先级最高的可用任务。
+  * 这确保了即使有大量低优先级任务积压，新调度进来的高优先级任务（概念上，比如由用户输入触发的更新）也能迅速“插队”到前面，并在下一个可用的时间片内被优先处理。
+
+**上面的机制允许浏览器处理其他事务：** 在 React 让步的间隙，浏览器的事件循环就有机会去处理队列中的其他任务，包括：**用户输入事件**（点击、输入、滚动等）、**渲染和绘制**（更新屏幕显示）、**网络事件回调**（处理 fetch 或 XHR 的响应）、**定时器回调**（`setTimeout`, `setInterval`）。
+
+### 错误处理
+
+查看核心的 `workLoop` 函数，它在执行 `callback(didUserCallbackTimeout)` 这行代码时，**并没有**使用 `try...catch` 来包裹这个回调函数的调用。
+
+由于 `workLoop` 内部没有捕获 `callback` 可能抛出的错误，如果 `callback` 真的出错了，这个错误会从 `callback` 抛出，经过 `workLoop`，再经过 `flushWork`（即使在 profiling 路径下被 catch 了也会被 re-throw）。
+
+因为 `flushWork` 通常是通过 `requestHostCallback` 异步调用的（例如 `MessageChannel` 或 `setTimeout`），这个未被捕获的错误最终会成为一个**全局未捕获异常**，通常会被浏览器或 Node.js 环境报告到控制台。
+
+`flushWork` 通常在 `finally` 块中检查是否还有更多工作 (`hasMoreWork`) 并通过 `schedulePerformWorkUntilDeadline()` 重新调度自己。如果错误导致执行未能到达或正确完成这个 `finally` 块中的重新调度逻辑（虽然 `finally` 通常会执行，但错误可能干扰 `hasMoreWork` 的判断或后续流程），调度器可能会停止工作，直到有新的外部调用 `unstable_scheduleCallback` 来重新触发 `requestHostCallback`。
+
+所以错误应该由程序员来处理，[react.development.js](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js)对任务内部的失败采取的是比较简单的“失败即停止（当前批次）”策略。
+
+### 取消和中断
+
+**显式取消 (`unstable_cancelCallback`)**
+
+* **机制：** 文件提供了一个 `unstable_cancelCallback(task)` 函数。你需要传入之前调用 `unstable_scheduleCallback` 时返回的那个 `task` 对象。
+* **操作：** 这个函数的核心动作是 `task.callback = null;`。它找到对应的任务对象，并将其 `callback` 属性设置为 `null`。
+* **效果：** 当调度器的 `workLoop` 最终从队列中取出这个任务时，它会检查 `if (typeof callback === 'function')`。由于此时 `callback` 已经是 `null`，这个检查会失败，`workLoop` 就不会执行任何操作，通常会直接将这个任务从队列中 `pop` 掉（如果它在队首的话）。
+* **适用范围：** 这种方法只对那些**还在 `taskQueue` 或 `timerQueue` 中等待，尚未开始执行**的任务有效。它可以干净地阻止这些任务被执行。
+
+**中断正在运行的任务**
+
+* **无抢占式中断：** 由于 JavaScript 的单线程和协作式模型，这个调度器无法强行中断一个正在同步执行的回调函数。如果你的 `callback` 函数正在执行一个长时间的同步计算（比如一个大的 `for` 循环），调度器无法在循环中途将其暂停。
+* **让步作为中断点：** 调度器实现的唯一“中断”形式发生在**任务之间**，或者一个可分解任务的**多个分块之间**（如果回调返回一个函数作为续体）。当中 `shouldYieldToHost()` 返回 `true` 时，`workLoop` 会中断执行 `break`。这并非中断当前正在执行的回调代码，而是决定**暂时不开始执行下一个任务（或下一个任务块）**
+* **取消时对副作用和资源的处理**
+  * **任务未开始时取消：** 如果在任务的回调函数开始执行**之前**调用了 `unstable_cancelCallback`，那么该回调函数内部的任何副作用都不会发生。这是一个干净的取消。
+  * **任务已开始时取消：** 如果任务的回调函数**已经开始执行**其同步代码，`unstable_cancelCallback` **无法阻止它继续执行**。并且，调度器本身**没有任何机制**通知那个正在运行的回调：“你应该停下来并进行清理”。
+  * **清理责任：** 如果一个任务被意图取消，但其回调已经开始执行，那么任何必要的清理逻辑（例如，释放它持有的资源、中止它发起的网络请求等）都**完全是回调函数自身或者更高层应用代码的责任**。回调函数需要自己内部包含检查逻辑（比如检查一个外部设置的标志位）来判断是否应该提前中止并执行清理。[react.development.js](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js)**中的调度器代码不提供任何用于这种执行中取消信号或清理编排的基础设施。**
+  * **React 语境下的处理：** 在完整的 React 应用中，`useEffect` 的清理函数（cleanup function）扮演了类似的角色。当组件卸载或依赖项变化时，如果之前的异步 effect 尚未完成，其清理函数会被调用，开发者可以在清理函数中取消网络请求、移除监听器等。但这套机制是与 React 组件生命周期和 Hooks 规则绑定的，由渲染器管理，而非这段独立的调度器代码直接提供。
