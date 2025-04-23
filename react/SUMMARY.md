@@ -15,3 +15,4 @@
 * [Reconciliation (协调)](reconciliation-xie-tiao.md)
 * [React的数据变化监听机制](react-de-shu-ju-bian-hua-jian-ting-ji-zhi.md)
 * [React 皇舆版图](react-huang-yu-ban-tu.md)
+* [React 并发](react-bing-fa.md)
