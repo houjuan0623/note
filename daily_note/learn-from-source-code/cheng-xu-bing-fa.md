@@ -55,13 +55,14 @@ icon: water
 
 在react并发模型中的**资源主要是指单线程的执行权。**&#x63A5;下来我们从两个角度讨论执行权的抢占，一方面是react不同优先级任务的执行权的协调，另一方面是react任务和浏览器任务优先权协调。
 
-在react中所有的任务都保存在taskQueue中。taskQueue默认按照最小堆（什么是最小，这里是根据sortIndex的值来比较的，sortIndex在用户传入delay选项的时候值为currentTime+delay，在用户未传入delay选项的时候sortIndex为currentTime+timeout(不同优先级具有不同的超时时间，优先级越高超时时间越小)）建立的，所以taskQueue\[0]储存着最先应该执行task。
+在react中所有的任务都保存在taskQueue中。taskQueue默认按照最小堆（什么是最小，这里是根据sortIndex的值来比较的，sortIndex在用户传入delay选项的时候值为currentTime+delay，在用户未传入delay选项的时候sortIndex为currentTime+timeout(不同优先级具有不同的超时时间，优先级越高超时时间越小)）建立的，所以taskQueue\[0]储存着最先应该执行task。如图1所示。
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption><p>图1</p></figcaption></figure>
 
 屏幕刷新率为60HZ的时候，浏览器每帧存活时间约为16.67ms，React规定在这16.67ms内至多有[5ms](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js#L2417)用于执行task。
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption><p>图2</p></figcaption></figure>
 
-如图所示，react任务最多执行5ms，超过5ms的情况下会通过return终止当前任务的执行，然后就会将执行权交给浏览器。
+如图2所示，react任务最多执行5ms，超过5ms的情况下会通过return终止当前任务的执行，然后就会将执行权交给浏览器。
 
+z
