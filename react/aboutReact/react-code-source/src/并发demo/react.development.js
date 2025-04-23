@@ -2424,6 +2424,11 @@
     function peek(heap) {
       return heap.length === 0 ? null : heap[0];
     }
+    /**
+     * 这里的操作实际上是将heap[0]移出数组，然后将heap[length-1]赋值给heap[0]
+     * @param heap taskqueue 
+     * @returns index为0的元素
+     */
     function pop(heap) {
       if (heap.length === 0) {
         return null;
@@ -2444,13 +2449,17 @@
       var index = i;
   
       while (index > 0) {
+        // parentindex为index对应的节点的根节点索引
         var parentIndex = index - 1 >>> 1;
+        // heap[parentIndex]为index对应的节点的根节点
         var parent = heap[parentIndex];
   
         if (compare(parent, node) > 0) {
           // The parent is larger. Swap positions.
+          // 比较根节点和叶节点的值，将较小的一方作为根节点
           heap[parentIndex] = node;
           heap[index] = parent;
+          // 循环条件是index>0，意味着将会一直比较到二叉树的根节点，重塑整棵二叉树。
           index = parentIndex;
         } else {
           // The parent is smaller. Exit.
@@ -2463,7 +2472,8 @@
       var index = i;
       var length = heap.length;
       var halfLength = length >>> 1;
-  
+      // 注意这里为了塑建最小堆，采用的思路是：为heap[0]找到合适的位置，此时heap[0]经过之前操作应该是队尾元素
+      // heap[0]一级一级向下比较。找到一个合适的位置
       while (index < halfLength) {
         var leftIndex = (index + 1) * 2 - 1;
         var left = heap[leftIndex];

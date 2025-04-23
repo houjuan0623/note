@@ -74,7 +74,7 @@ export interface PendingPassiveEffects {
 }
 
 /**
- * FiberRootNode 是 FiberNode 的根节点
+ * FiberRootNode 是 FiberNode 的根节点。是整个 React 应用实例的根容器或入口点。
  */
 export class FiberRootNode {
   /** container是指document（html元素）对应的容器，比如：\<div id="root"\>\<\/div\> */
@@ -82,7 +82,17 @@ export class FiberRootNode {
   /** 之所以我将fiberRootNode称为特殊的finerNode就是因为在这里fiberRootNode使用current来引用属于自身的fiberNode */
   current: FiberNode;
   finishedWork: FiberNode | null;
+  /**
+   * 待处理的优先级集合。pendingLanes (复数形式) 通常是一个位掩码 (bitmask)，代表了当前所有已调度但尚未完成的更新任务所对应的优先级集合。
+   * 
+   * 在一个 SPA 的运行过程中，用户交互、数据获取、动画、定时器等都可能触发状态更新。这些更新不是简单地一个接一个排队执行的，它们可能：
+   * 
+   * - 同时发生: 用户可能在数据加载的同时快速输入内容。
+   * - 具有不同优先级: 用户输入（需要立即响应）通常比屏幕外的更新（可以稍后处理）优先级更高。
+   * - pendingLanes 就是用来记录所有这些待处理更新的优先级集合。
+   */
   pendingLanes: Lanes;
+  /** finishedLane (单数形式) 代表了最近一次成功完成的渲染工作（即生成了 finishedWork 树）所处理的那个优先级（通常是该次渲染批次中最高的优先级）。 */
   finishedLane: Lane;
   pendingPassiveEffects: PendingPassiveEffects;
   callbackNode: CallbackNode | null;

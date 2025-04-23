@@ -147,7 +147,7 @@ export function ensureRootIsScheduled(root: FiberRootNode) {
 		scheduleMicroTask(flushSyncCallbacks);
 	} else {
 		// 其他优先级 用宏任务调度
-		const schedulerPriority = lanesToSchedulerPriority(curPriority);
+		const schedulerPriority = lanesToSchedulerPriority(curPriority); // 调用lanesToSchedulerPriority将workLoop中定义的优先级转化为react并发库中能够识别的优先级
 		newCallbackNode = scheduleCallback(
 			schedulerPriority,
 			// @ts-ignore
@@ -181,7 +181,7 @@ function performConcurrentWorkOnRoot(
 ): any {
 	// TODO 检测当前不处于React工作流程（render、commit）内
 
-	// 在执行具体工作前，保证上一次的useEffect都执行完了
+	// 在执行具体工作前，保证上一次的useEffect都执行完了，避免意外错误的发生。参考 https://app.gitbook.com/o/Dh4flEm2pA2yXSN80gFW/s/wxgOyzcGIsWPaE8nJDAD/learn-from-source-code/cheng-xu-bing-fa#qu-xiao-he-zhong-duan
 	const curCallbakNode = root.callbackNode;
 	const didFlushPassiveEffect = flushPassiveEffects(root.pendingPassiveEffects);
 	if (didFlushPassiveEffect) {

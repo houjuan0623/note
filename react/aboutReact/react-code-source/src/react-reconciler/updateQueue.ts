@@ -15,6 +15,12 @@ export interface UpdateQueue<State> {
   dispatch: Dispatch<State> | null;
 }
 
+/**
+ * 创建更新节点。维护需要update的数据结构。
+ * @param action 对应element对象，eg: <App /> 对应的js element结构。
+ * @param lane 优先级
+ * @returns object {action, lane, next: null,}
+ */
 export const createUpdate = <State>(
   action: Action<State>,
   lane: Lane
@@ -47,7 +53,7 @@ export const createUpdateQueue = <State>() => {
 };
 
 /**
- * 建立update队列
+ * 建立update环状链表
  * @param updateQueue 内部的pending指向维护更新队列的指针
  * @param update 待更新的update对象
  * 
@@ -80,7 +86,7 @@ export const createUpdateQueue = <State>() => {
  * ^              |
  * |______________|
  * ```
-c的next指向a，b的next指向c, pending更新为c
+ * c的next指向a，b的next指向c, pending更新为c
  */
 export const enqueueUpdate = <State>(
   updateQueue: UpdateQueue<State>,
