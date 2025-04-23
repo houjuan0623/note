@@ -49,13 +49,15 @@ icon: water
 
 ## REACT 并发
 
-**TODO: 共享变量的分析在每个关注的流程中去分析不要专门去分析，太多了。**
+[源码](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js)
 
-### react 并发模型
+### 资源共享和同步问题
 
 在react并发模型中的**资源主要是指单线程的执行权。**&#x63A5;下来我们从两个角度讨论执行权的抢占，一方面是react不同优先级任务的执行权的协调，另一方面是react任务和浏览器任务优先权协调。
 
 在react中所有的任务都保存在taskQueue中。taskQueue默认按照最小堆（什么是最小，这里是根据sortIndex的值来比较的，sortIndex在用户传入delay选项的时候值为currentTime+delay，在用户未传入delay选项的时候sortIndex为currentTime+timeout(不同优先级具有不同的超时时间，优先级越高超时时间越小)）建立的，所以taskQueue\[0]储存着最先应该执行task。如图1所示。
+
+通过sortIndex排序建立的最小堆数据结构同时保证了任务之间执行顺序。但是当任务之间有依赖关系时，在[react.development.js](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js)中并没有显式的依赖声明机制，所以这这种情况下需要程序员显示声明任务A和任务B之间的依赖关系。
 
 <figure><img src="../.gitbook/assets/image.png" alt=""><figcaption><p>图1</p></figcaption></figure>
 
@@ -65,4 +67,13 @@ icon: water
 
 如图2所示，react任务最多执行5ms，超过5ms的情况下会通过return终止当前任务的执行，然后就会将执行权交给浏览器。
 
-z
+### 死锁和活锁问题
+
+当我们仅仅将注意力集中在[react.development.js](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js)的时候，它本身的设计几乎不可能产生经典意义上的死锁和活锁现象。
+
+这段代码设计的运行环境（浏览器 JavaScript 主线程或 Node.js）通常是单线程的。死锁的典型场景是多个线程（或进程）互相持有对方需要的资源（通常通过锁来控制访问）并等待对方释放。在单线程模型下，不存在多个线程同时持有并等待资源的情况。
+
+活锁通常发生在多个单元都在积极地改变状态以响应对方，但整体无法前进。这里的任务是由 `workLoop` 单方面按优先级挑选和执行的，它们之间没有形成调度器层面的、互相响应导致空转的循环。
+
+e
+
