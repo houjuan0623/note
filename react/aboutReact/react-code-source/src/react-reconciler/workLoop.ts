@@ -45,9 +45,14 @@ const RootCompleted = 2;
 // TODO render报错
 
 /**
- * react render流程的起始点 。
+ * react render流程的起始点。初始化渲染环境。
  * @param root 
  * @param lane 
+ * 
+ * 它通常在以下情况被调用：<br />
+ * - 首次渲染：当你的 SPA 应用第一次加载并渲染时，必须调用它来建立初始的 Fiber 树和渲染状态。
+ * - 开始新的更新：当一个组件状态改变（setState）、属性变化（props change）、或者 forceUpdate 被调用时，React 需要启动一个新的渲染流程来计算变化。
+ * - 优先级变化或中断：在并发模式下，如果一个更高优先级的更新（比如用户输入）到来了，而此时 React 正在处理一个较低优先级的更新（比如渲染一个数据列表），React 可能会中断当前的低优先级工作，转而去处理高优先级更新。这时，就需要调用 prepareFreshStack 来为这个更高优先级的更新准备工作环境。
  */
 export function prepareFreshStack(root: FiberRootNode, lane: Lane) {
 	root.finishedLane = NoLane;
@@ -220,7 +225,14 @@ function performConcurrentWorkOnRoot(
 		console.error('还未实现的并更更新结束状态');
 	}
 }
-
+/**
+ * 
+ * @param root 
+ * @param lane 
+ * @param shouldTimeSlice true: 使用并发渲染；false: 使用同步渲染。
+ * @returns 
+ * 
+ */
 function renderRoot(
 	root: FiberRootNode,
 	lane: Lane,
@@ -230,6 +242,10 @@ function renderRoot(
 	console.log(`开始${shouldTimeSlice ? '并发' : '同步'}render阶段`, root);
 
 
+	/**
+	 * wipRootRenderLane !== lane
+	 * 如果一个更高优先级的更新到来了，而此时 React 正在处理一个较低优先级的更新，React 可能会中断当前的低优先级工作，转而去处理高优先级更新。
+	 */
 	if (wipRootRenderLane !== lane) {
 		// 初始化
 		prepareFreshStack(root, lane);
