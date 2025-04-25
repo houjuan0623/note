@@ -142,10 +142,13 @@ export const processUpdateQueue = <State>(
     // 设置一个指针 pending，接下来从第一个更新开始遍历。
     let pending = pendingUpdate.next as Update<any>;
 
-    //  初始化 newBaseState，它将记录下一次更新开始时的状态。
+    // 初始化 newBaseState，它将记录下一次更新开始时的状态。
     let newBaseState = baseState;
     let newBaseQueueFirst: Update<State> | null = null;
     let newBaseQueueLast: Update<State> | null = null;
+    // 初始化了一个 newState 变量，它的初始值是本次处理更新前的基础状态 (baseState)
+    // 在 do...while 循环的每一次迭代中，newState 变量会被当前正在处理的这个更新所修改。
+    // newState 变量就像一个累加器，在循环过程中逐步地、顺序地应用了所有优先级足够的更新，确保了函数式更新总是基于其前面更新处理后的结果进行计算。
     let newState = baseState;
 
     do {
@@ -177,8 +180,10 @@ export const processUpdateQueue = <State>(
         }
 
         const action = pending.action;
+        // 这里的 action 就是传入 setState 的那个函数 (例如 prevState => ({ count: prevState.count + 1 })）。
         if (action instanceof Function) {
           // baseState 1 update (x) => 4x -> memoizedState 4
+          // 这个 action 函数被调用时，传递给它的参数是当前的 newState 值。这个 newState 值不是最初的 baseState，而是已经被循环中它之前的所有（优先级足够的）更新修改过的中间状态。
           newState = action(baseState);
         } else {
           // baseState 1 update 2 -> memoizedState 2

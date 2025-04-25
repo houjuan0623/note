@@ -45,7 +45,7 @@ const RootCompleted = 2;
 // TODO render报错
 
 /**
- * react render流程的起始点。初始化渲染环境。
+ * 初始化渲染环境（即初始化fiber树）。
  * @param root 
  * @param lane 
  * 
@@ -121,6 +121,7 @@ export function ensureRootIsScheduled(root: FiberRootNode) {
 	const updateLane = getHighestPriorityLane(root.pendingLanes);
 	const existingCallback = root.callbackNode;
 
+	// 如果是noLane就取消执行，所以稍后不想让任务被执行可以直接通过标记其优先级为NoLane即可。
 	if (updateLane === NoLane) {
 		if (existingCallback !== null) {
 			unstable_cancelCallback(existingCallback);
@@ -166,7 +167,11 @@ export function ensureRootIsScheduled(root: FiberRootNode) {
 function markRootUpdated(root: FiberRootNode, lane: Lane) {
 	root.pendingLanes = mergeLanes(root.pendingLanes, lane);
 }
-
+/**
+ * 找根节点 fiberRootNode。
+ * @param fiber 
+ * @returns 
+ */
 function markUpdateFromFiberToRoot(fiber: FiberNode) {
 	let node = fiber;
 	let parent = node.return;
@@ -226,10 +231,10 @@ function performConcurrentWorkOnRoot(
 	}
 }
 /**
- * 
- * @param root 
+ * renderRoot 函数是 React 渲染流程的核心调度器之一，它负责启动或继续 Fiber 树的渲染阶段（Render Phase），这是开始处理更新、构建或更新 Fiber 树（工作单元）的入口点
+ * @param root fiberRootNode
  * @param lane 
- * @param shouldTimeSlice true: 使用并发渲染；false: 使用同步渲染。
+ * @param shouldTimeSlice true: 使用并发渲染（用于优先级较低的更新，渲染过程可以被中断（时间切片），允许浏览器处理更高优先级的任务（如用户事件、绘制），然后再回来继续渲染。）；false: 使用同步渲染（通常用于优先级较高的更新（如用户输入），会一次性完成整个 Fiber 树的遍历和计算，期间不会中断。）。
  * @returns 
  * 
  */
@@ -247,7 +252,7 @@ function renderRoot(
 	 * 如果一个更高优先级的更新到来了，而此时 React 正在处理一个较低优先级的更新，React 可能会中断当前的低优先级工作，转而去处理高优先级更新。
 	 */
 	if (wipRootRenderLane !== lane) {
-		// 初始化
+		// 初始化fiber树
 		prepareFreshStack(root, lane);
 	}
 
@@ -265,12 +270,12 @@ function renderRoot(
 
 	// 中断执行 || 执行完 || TODO 报错
 	if (shouldTimeSlice && workInProgress !== null) {
-		return RootInComplete;
+		return RootInComplete; // 如果是并发渲染 (shouldTimeSlice 为 true) 且 workInProgress 不为 null，表示渲染工作被中断（时间切片用完或有更高优先级任务），尚未完成。
 	}
 	if (!shouldTimeSlice && workInProgress !== null) {
 		console.error('render阶段结束时wip不应该为null');
 	}
-	return RootCompleted;
+	return RootCompleted; // 如果渲染工作正常完成（workInProgress 为 null），无论是同步还是并发模式。
 }
 
 function performSyncWorkOnRoot(root: FiberRootNode) {
