@@ -82,6 +82,7 @@ export function renderWithHooks(wip: FiberNode, lane: Lane) {
   const children = Component(props);
 
   // 重置操作，防止在不正确的位置调用useState
+  // 如果不是有效的上下文，这里的currentlyRenderingFiber不会被赋为正确的值。后面会有currentlyRenderingFiber是否为空的判断。
   currentlyRenderingFiber = null;
   workInProgressHook = null;
   currentHook = null;
