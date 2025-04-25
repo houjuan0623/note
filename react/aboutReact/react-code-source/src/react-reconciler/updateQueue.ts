@@ -162,6 +162,7 @@ export const processUpdateQueue = <State>(
           // first = u0 last = u0
           newBaseQueueFirst = clone;
           newBaseQueueLast = clone;
+          // 记录第一个被跳过的节点
           newBaseState = newState;
         } else {
           // first = u0 -> u1 && last = u1
