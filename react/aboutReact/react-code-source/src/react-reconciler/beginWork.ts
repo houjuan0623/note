@@ -84,9 +84,9 @@ function updateHostComponent(wip: FiberNode) {
  * const current = wip.alternate
  * ```
  * 每个 wip 树中的 Fiber 节点（如果它不是首次创建的话）会通过 alternate 属性指向 current 树中对应的那个旧节点。<br />
- * 在代码逻辑中走的是更新还是挂载根据wip本身是否是首次创建而言的。<br />
+ * 在代码逻辑中走的是更新还是挂载取决于当前正在处理的wip节点在current树中是否有对应的节点。<br />
  * @param wip 正在处理的wip（fiber）节点
- * @param children 
+ * @param children 正在处理的wip（fiber）节点的子节点，此时子节点类型不是fiber，是Symbol(react.element)
  */
 export function reconcileChildren(wip: FiberNode, children?: ReactElementType) {
 	const current = wip.alternate;

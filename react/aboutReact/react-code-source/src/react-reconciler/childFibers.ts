@@ -274,9 +274,10 @@ export function ChildReconciler(shouldTrackEffects: boolean) {
     /**
      * 协调 <br />
      * 
-     * returnFiber 当前正在处理的wip节点的那个父级 Fiber 节点（在 workInProgress 树中）。
-     * currentFiber 当前正在处理的wip节点的alternate对应的 Fiber 节点（在 current 树中）。
-     * newChild 本次渲染调用 render() 方法中传入的组件即 returnFiber 代表的组件。
+     * 注意下面的描述中均将returnFiber看做当前正在处理的wip节点。
+     * returnFiber 正在处理的wip节点（在 workInProgress 树中）。
+     * currentFiber 正在处理的wip节点的alternate对应的 current Fiber 节点的子节点（在 current 树中）。
+     * newChild 正在处理的wip节点记录的memoizedState状态。
      */
     return function reconcileChildFibers(
         returnFiber: FiberNode,

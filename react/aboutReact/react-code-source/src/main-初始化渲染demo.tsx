@@ -26,32 +26,7 @@ function effect2() {
 	}
 }
 
-function effect3() {
-	console.log('useEffect回调333执行')
-
-	return () => {
-		console.log('effect3333 销毁')
-	}
-}
-
-function effect4() {
-	console.log('useEffect回调4444执行')
-
-	return () => {
-		console.log('effect444 销毁')
-	}
-}
-
-function Bpp() {
-
-	useEffect(effect3)
-
-	useEffect(effect4)
-
-	return (
-		<h1>Bpp</h1>
-	)
-}
+function Bpp() {}
 
 function App() {
 	const [count, setCount] = useState(0)

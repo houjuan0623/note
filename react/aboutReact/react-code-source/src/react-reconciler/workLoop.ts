@@ -184,13 +184,11 @@ function markUpdateFromFiberToRoot(fiber: FiberNode) {
 	}
 	return null;
 }
-
+// 在scheduleCallback中performConcurrentWorkOnRoot被作为并发task的回调函数。观察performConcurrentWorkOnRoot的功能，每次都会调用renderRoot，在renderRoot中只要lane不相同就会准备一棵fiber树。
 function performConcurrentWorkOnRoot(
 	root: FiberRootNode,
 	didTimeout: boolean
 ): any {
-	// TODO 检测当前不处于React工作流程（render、commit）内
-
 	// 在执行具体工作前，保证上一次的useEffect都执行完了，避免意外错误的发生。参考 https://app.gitbook.com/o/Dh4flEm2pA2yXSN80gFW/s/wxgOyzcGIsWPaE8nJDAD/learn-from-source-code/cheng-xu-bing-fa#qu-xiao-he-zhong-duan
 	const curCallbakNode = root.callbackNode;
 	const didFlushPassiveEffect = flushPassiveEffects(root.pendingPassiveEffects);

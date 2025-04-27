@@ -26,6 +26,7 @@ export class FiberNode {
   return: FiberNode | null;
   sibling: FiberNode | null;
   child: FiberNode | null;
+  /** 当有多个element元素同级的时候，同级元素经过jsx的处理会被处理成为数组。index记录本fiber对应的element在数组中的位置，从0开始 */
   index: number;
 
   memoizedProps: Props | null;
@@ -106,6 +107,7 @@ export class FiberRootNode {
   container: Container;
   /** 之所以我将fiberRootNode称为特殊的finerNode就是因为在这里fiberRootNode使用current来引用属于自身的fiberNode */
   current: FiberNode;
+  /** 走完递+归的流程之后，会将此时建立的fiber树处于finished状态，故命名为finishedWork */
   finishedWork: FiberNode | null;
   /**
    * 待处理的优先级集合。pendingLanes (复数形式) 通常是一个位掩码 (bitmask)，代表了当前所有已调度但尚未完成的更新任务所对应的优先级集合。
