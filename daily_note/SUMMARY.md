@@ -9,6 +9,7 @@
 * [程序并发](learn-from-source-code/cheng-xu-bing-fa.md)
 * [数据库并发](learn-from-source-code/shu-ju-ku-bing-fa.md)
 * [长连接高并发](learn-from-source-code/chang-lian-jie-gao-bing-fa.md)
+* [消息队列并发](learn-from-source-code/xiao-xi-dui-lie-bing-fa.md)
 * [🩸 promise vs 纤程](learn-from-source-code/promise-vs-xian-cheng.md)
 * [🩸 nodejs vs java](<README (1).md>)
 * [🩸 promise vs go(go处理并发的那个数据结构)](learn-from-source-code/promise-vs-gogo-chu-li-bing-fa-de-na-ge-shu-ju-jie-gou.md)
