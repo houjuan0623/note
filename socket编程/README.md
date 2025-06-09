@@ -339,7 +339,169 @@ int main(int argc, chat **argv){
 
 ## epoll
 
-e
+对于epoll，内核**不再需要轮询**，而是采用了一种更高效的**事件驱动（Event-driven）机制**。
+
+### 三大系统调用
+
+*   `epoll_create()`: 在内核中创建一个`epoll`实例。可以把它想象成在内核里建立了一个专门的“事件中心”。这个“中心”被创建后，会返回一个文件描述符（`epfd`）给用户进程，用于后续操作。
+
+    > epoll\_create创建的数据结构：
+    >
+    > 1. 红黑树：每一个`epoll`实例在内核中都对应一棵红黑树。这棵树用来存储所有通过`epoll_ctl`添加进来需要监视的FD。
+    > 2. **就绪链表 (Ready List)**：这是一个双向链表，用来存放已经就绪（即IO事件已经发生）的FD。
+
+
+* `epoll_ctl()`: 这是`epoll`的管理接口。通过这个函数，进程可以向内核的“事件中心”**添加**（`ADD`）、**修改**（`MOD`）或**删除**（`DEL`）需要监视的文件描述符（`fd`）。
+* `epoll_wait()`: 这是进程等待事件的接口。进程调用它后，如果“事件中心”里没有任何就绪的FD，进程就会进入睡眠状态；一旦有FD就绪，这个函数就会被唤醒并返回就绪的FD列表。
+
+ban s\
+￼Comment\
+￼Share feedback on the editor\
+\#include "unp.h"\
+\#include \<sys/epoll.h>\
+\#include \<limits.h>\
+​\
+int main(int argc, char \*\*argv) {\
+&#x20;   int i, listenfd, connfd, sockfd, epfd, nfds;\
+&#x20;   ssize\_t n;\
+&#x20;   char buf\[MAXLINE];\
+&#x20;   socklen\_t clilen;\
+&#x20;   struct epoll\_event ev, events\[OPEN\_MAX];\
+&#x20;   struct sockaddr\_in cliaddr, servaddr;\
+​\
+&#x20;   listenfd = Socket(AF\_INET, SOCK\_STREAM, 0);\
+​\
+&#x20;   bzero(\&servaddr, sizeof(servaddr));\
+&#x20;   servaddr.sin\_family = AF\_INET;\
+&#x20;   servaddr.sin\_addr.s\_addr = htonl(INADDR\_ANY);\
+&#x20;   servaddr.sin\_port = htons(SERV\_PORT);\
+​\
+&#x20;   Bind(listenfd, (SA \*)\&servaddr, sizeof(servaddr));\
+​\
+&#x20;   Listen(listenfd, LISTENQ);\
+​\
+&#x20;   epfd = epoll\_create1(0);\
+&#x20;   if (epfd == -1)\
+&#x20;       err\_sys("epoll\_create1 error");\
+​\
+&#x20;   ev.events = EPOLLIN;\
+&#x20;   ev.data.fd = listenfd;\
+&#x20;   if (epoll\_ctl(epfd, EPOLL\_CTL\_ADD, listenfd, \&ev) == -1)\
+&#x20;       err\_sys("epoll\_ctl: listen\_sock error");\
+​\
+&#x20;   for (;;) {\
+&#x20;       nfds = epoll\_wait(epfd, events, OPEN\_MAX, -1);\
+&#x20;       if (nfds == -1)\
+&#x20;           err\_sys("epoll\_wait error");\
+​\
+&#x20;       for (i = 0; i < nfds; i++) {\
+&#x20;           if (events\[i].data.fd == listenfd) {  // 新连接\
+&#x20;               clilen = sizeof(cliaddr);\
+&#x20;               connfd = Accept(listenfd, (SA \*)\&cliaddr, \&clilen);\
+​\
+&#x20;               ev.events = EPOLLIN | EPOLLET; // 使用边缘触发模式\
+&#x20;               ev.data.fd = connfd;\
+&#x20;               if (epoll\_ctl(epfd, EPOLL\_CTL\_ADD, connfd, \&ev) == -1)\
+&#x20;                   err\_sys("epoll\_ctl: conn\_sock error");\
+&#x20;           } else {  // 已有连接上有数据可读\
+&#x20;               sockfd = events\[i].data.fd;\
+&#x20;               if ((n = read(sockfd, buf, MAXLINE)) < 0) {\
+&#x20;                   if (errno == ECONNRESET) {\
+&#x20;                       close(sockfd);\
+&#x20;                       if (epoll\_ctl(epfd, EPOLL\_CTL\_DEL, sockfd, NULL) == -1)\
+&#x20;                           err\_sys("epoll\_ctl: conn\_sock error");\
+&#x20;                   } else\
+&#x20;                       err\_sys("read error");\
+&#x20;               } else if (n == 0) {\
+&#x20;                   close(sockfd);\
+&#x20;                   if (epoll\_ctl(epfd, EPOLL\_CTL\_DEL, sockfd, NULL) == -1)\
+&#x20;                       err\_sys("epoll\_ctl: conn\_sock error");\
+&#x20;               } else\
+&#x20;                   Writen(sockfd, buf, n);\
+&#x20;           }\
+&#x20;       }\
+&#x20;   }\
+}\
+￼\
+C\
+￼Copy\
+￼More options\
+￼Insert block\
+￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+在使用 epoll 的边缘触发（EPOLLET）模式时，可能出现的一种潜在问题：\
+￼\
+￼Comment\
+￼Share feedback on the editor\
+￼Insert block\
+￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+场景设置：\
+￼\
+￼Comment\
+￼Share feedback on the editor\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+我们有一个管道（pipe），它的读取端文件描述符 rfd 被注册到了 epoll 实例中，并且使用了边缘触发模式。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+管道的写入端写入 2KB 数据。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+调用 epoll\_wait，rfd 被返回，表示有数据可读。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+从 rfd 中读取 1KB 数据。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+再次调用 epoll\_wait。\
+￼Insert block\
+￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+问题：\
+￼\
+￼Comment\
+￼Share feedback on the editor\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+在步骤 5 中，epoll\_wait 可能会挂起（阻塞），即使输入缓冲区中还有剩余数据未读。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+这是因为边缘触发模式下，epoll 只在文件描述符状态发生变化时才会产生事件。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+在步骤 2 中，写入数据导致 rfd 状态变为可读，触发了一个事件，这个事件在步骤 3 中被 epoll\_wait 消费。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+虽然步骤 4 中只读取了部分数据，但 rfd 仍然处于可读状态，它的状态没有发生变化。\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+因此，在步骤 5 中，epoll\_wait 不会再收到任何事件通知，从而导致挂起。\
+￼Insert block\
+￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+影响：\
+￼\
+￼Comment\
+￼Share feedback on the editor\
+￼￼Block controls\
+￼Comment\
+￼Share feedback on the editor\
+这种情况下，管道的另一端（写入端）可能正在等待读取端的响应，但读取端却因为 epoll\_wait 挂起而无法及时处理数据，导致通信停滞。
 
 ### epoll实现TCP回射服务器
 
