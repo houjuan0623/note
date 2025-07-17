@@ -22,4 +22,6 @@
 
 ## 进程调度
 
+* [进程和线程](jin-cheng-diao-du/jin-cheng-he-xian-cheng.md)
 * [信号量](jin-cheng-diao-du/xin-hao-liang.md)
+* [锁](jin-cheng-diao-du/suo.md)
