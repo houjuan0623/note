@@ -17,7 +17,11 @@
 ```c
 struct task_struct {
     long state;                // 任务的运行状态（-1：不可运行，0可运行（就绪），>0 已停止）
-    
+    ...
+    long signal;               // 信号位图，每个比特位代表一种信号，信号值=位偏移值+1
+    ...
+    unsigned long_start_code;  // 代码段地址
+    unsigned 
 }
 ```
 
