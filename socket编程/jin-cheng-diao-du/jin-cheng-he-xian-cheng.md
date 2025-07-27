@@ -25,6 +25,8 @@ struct task_struct {
     unsigned long end_data;    // 代码长度+数据长度（字节数）
     ...
     task_struct *p_pptr;       // 指向父进程的指针
+    ...
+    struct file * filp[NR_OPEN];  // 文件结构指针，最多32项。表项号就是文件描述符的值。
 }
 ```
 
