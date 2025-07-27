@@ -19,6 +19,9 @@
 ## 系统调用
 
 * [系统调用](xi-tong-diao-yong/xi-tong-diao-yong.md)
+* [sys\_read](xi-tong-diao-yong/sys_read/README.md)
+  * [神奇的 file descriptor](xi-tong-diao-yong/sys_read/shen-qi-de-file-descriptor.md)
+* [sys\_fork](xi-tong-diao-yong/sys_fork.md)
 
 ## 进程调度
 
