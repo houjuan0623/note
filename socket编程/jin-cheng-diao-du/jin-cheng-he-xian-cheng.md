@@ -26,7 +26,7 @@ struct task_struct {
     ...
     task_struct *p_pptr;       // 指向父进程的指针
     ...
-    struct file * filp[NR_OPEN];  // 文件结构指针，最多32项。表项号就是文件描述符的值。
+    struct file * filp[NR_OPEN];  // 文件结构指针，最多20项。索引就是文件描述符的值。
 }
 ```
 
