@@ -5,13 +5,7 @@
 * [🌲 译文：从源码中学习（阅读源码，初学者的有效成长方式）](README.md)
 * [👮 一些关于RC的具体的阅读计划](learn-from-source-code/yi-xie-guan-yu-rc-de-ju-ti-de-yue-du-ji-hua.md)
 * [👨‍💻 记录阅读源码遇到的问题](learn-from-source-code/ji-lu-yue-du-yuan-ma-yu-dao-de-wen-ti.md)
-* [网络并发](learn-from-source-code/wang-luo-bing-fa.md)
-* [程序并发](learn-from-source-code/cheng-xu-bing-fa.md)
-* [数据库并发](learn-from-source-code/shu-ju-ku-bing-fa.md)
-* [长连接高并发](learn-from-source-code/chang-lian-jie-gao-bing-fa.md)
-* [消息队列并发](learn-from-source-code/xiao-xi-dui-lie-bing-fa.md)
 * [🩸 promise vs 纤程](learn-from-source-code/promise-vs-xian-cheng.md)
-* [🩸 nodejs vs java](<README (1).md>)
 * [🩸 promise vs go(go处理并发的那个数据结构)](learn-from-source-code/promise-vs-gogo-chu-li-bing-fa-de-na-ge-shu-ju-jie-gou.md)
 * [🩸 数据库的增删改查问题](learn-from-source-code/shu-ju-ku-de-zeng-shan-gai-cha-wen-ti.md)
 * [🩸 阅读一篇文章，生成自己的文章](learn-from-source-code/yue-du-yi-pian-wen-zhang-sheng-cheng-zi-ji-de-wen-zhang.md)
@@ -88,3 +82,15 @@
 * [需求文档编写](ruan-jian-gong-cheng/xu-qiu-wen-dang-bian-xie.md)
 * [总体设计文档编写](ruan-jian-gong-cheng/zong-ti-she-ji-wen-dang-bian-xie.md)
 * [测试需要思考的问题](ruan-jian-gong-cheng/ce-shi-xu-yao-si-kao-de-wen-ti.md)
+
+## 并发
+
+* [网络并发](bing-fa-1/wang-luo-bing-fa.md)
+* [程序并发](bing-fa-1/cheng-xu-bing-fa.md)
+* [数据库并发](bing-fa-1/shu-ju-ku-bing-fa.md)
+* [长连接高并发](bing-fa-1/chang-lian-jie-gao-bing-fa.md)
+* [消息队列并发](bing-fa-1/xiao-xi-dui-lie-bing-fa.md)
+
+## 语言的对比
+
+* [🩸 nodejs vs java](yu-yan-de-dui-bi/nodejs-vs-java.md)
