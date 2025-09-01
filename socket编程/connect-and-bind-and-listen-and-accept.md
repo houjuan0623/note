@@ -1,4 +1,4 @@
-# 🐶 connect\&bind\&listen\&accept
+# connect\&bind\&listen\&accept
 
 ## connect
 
