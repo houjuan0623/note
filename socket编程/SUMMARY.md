@@ -3,7 +3,7 @@
 * [🐶 IO 相关问题](README.md)
   * [Nginx VS Tomcat VS Libuv](io-xiang-guan-wen-ti/nginx-vs-tomcat-vs-libuv.md)
   * [Select & Poll & Epoll](io-xiang-guan-wen-ti/select-and-poll-and-epoll.md)
-  * [🐶 connect\&bind\&listen\&accept](io-xiang-guan-wen-ti/connect-and-bind-and-listen-and-accept.md)
+  * [🐶 connect\&bind\&listen\&accept](connect-and-bind-and-listen-and-accept.md)
 * [🐶 TCP](tcp.md)
 * [🐶 socket](socket.md)
 * [🦖 libuv](libuv/README.md)
