@@ -94,5 +94,10 @@
 ## 语言的对比
 
 * [🩸 nodejs vs java](yu-yan-de-dui-bi/nodejs-vs-java.md)
-* [nodejs的调优](yu-yan-de-dui-bi/nodejs-de-tiao-you.md)
-* [Java的调优](yu-yan-de-dui-bi/java-de-tiao-you.md)
+* [🍪 nodejs的调优](yu-yan-de-dui-bi/nodejs-de-tiao-you.md)
+* [🍪 Java的调优](yu-yan-de-dui-bi/java-de-tiao-you.md)
+* [Nodejs调优](yu-yan-de-dui-bi/nodejs-tiao-you.md)
+* [Nodejs-backend监测](yu-yan-de-dui-bi/nodejsbackend-jian-ce.md)
+* [Nodejs-frontend监测](yu-yan-de-dui-bi/nodejsfrontend-jian-ce.md)
+* [Java调优](yu-yan-de-dui-bi/java-tiao-you.md)
+* [Java监测](yu-yan-de-dui-bi/java-jian-ce.md)
