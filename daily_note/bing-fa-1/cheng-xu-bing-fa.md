@@ -59,7 +59,7 @@ icon: water
 
 通过sortIndex排序建立的最小堆数据结构同时保证了任务之间执行顺序。但是当任务之间有依赖关系时，在[react.development.js](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js)中并没有显式的依赖声明机制，所以这这种情况下需要程序员显示声明任务A和任务B之间的依赖关系。
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption><p>图1</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (2).png" alt=""><figcaption><p>图1</p></figcaption></figure>
 
 屏幕刷新率为60HZ的时候，浏览器每帧存活时间约为16.67ms，React规定在这16.67ms内至多有[5ms](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js#L2417)用于执行task。
 
@@ -79,7 +79,7 @@ function shouldYieldToHost() {
 }
 ```
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption><p>图2</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1) (1).png" alt=""><figcaption><p>图2</p></figcaption></figure>
 
 如图2所示，react任务最多执行5ms，超过5ms的情况下会通过return终止当前任务的执行，然后就会将执行权交给浏览器。
 

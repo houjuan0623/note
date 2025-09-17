@@ -12,11 +12,21 @@
 Chrome DevTools是前端开发的百宝箱。也是性能分析的首选。
 
 > **建议：**&#x4E3A;了避免浏览器扩展、缓存等因素的干扰，强烈建议在浏览器的无痕模式下进行所有分析 。
+>
+> **应用时机：**&#x4E0B;面介绍的是强大的前端诊断工具，但正因为它强大，所以它也很“重”。当完成一个已知对性能有挑战的功能模块时，才应该请出performance、lighthouse等“重”工具。
 
 *   **网络 (Network) 面板：**&#x8FD9;是分析所有网络活动的窗口。通过此面板，可以识别出体积过大的资源（如JavaScript包、图片）、响应缓慢的API请求（使用XHR过滤器）以及失败的请求。关键在于检查资源的大小、加载时间，并确认是否启用了压缩（检查响应头中的`Content-Encoding`字段，如`gzip`或`br`）。
 
+    > **良好的设计：**
     >
-*
+    > * 首先加载coverage覆盖率较高的代码文件。
+    > * 在用户无感的情况下加载用户当前界面需要的代码文件，coverage无覆盖率的文件。
+
+    <figure><img src="../../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+* **性能 (Performance) 面板：**&#x8FD9;是诊断运行时问题的最强大工具。对于初始加载分析，应使用“Start profiling and reload page”功能；对于运行时交互分析，则手动开始和结束记录 。火焰图 (Flame Chart) 是核心视图，需要重点关注那些标记为红色的“长任务 (Long Tasks)”——即执行时间超过50毫秒、阻塞了主线程的JavaScript任务。通过追溯这些长任务的调用堆栈，可以定位到具体的耗时函数 。对于复杂的样式计算问题，可以开启“Enable CSS selector stats”以获取更详细的分析数据 。
+* **Lighthouse 面板：**&#x4C;ighthouse提供了一个高层次的应用健康检查报告。它全面评估应用的性能、可访问性、最佳实践和SEO 。报告会明确指出关键性能指标（FCP, LCP, TBT, CLS）的得分，并提供具体、可操作的优化建议，是发现问题的绝佳起点 。
+
+React Developer Tools或Vue Devtools是框架自带的工具，相对而言较“轻”。日常工作过程中应该优先使用 这些工具来保证组件的渲染性能。
 
 ## PS： Nginx缓存问题
 

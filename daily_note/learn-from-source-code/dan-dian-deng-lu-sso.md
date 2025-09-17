@@ -4,5 +4,5 @@
 
 cas流程如下图所示：
 
-![](<../.gitbook/assets/image (2).png>)
+![](<../.gitbook/assets/image (2) (1).png>)
 
