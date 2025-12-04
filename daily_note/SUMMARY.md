@@ -93,6 +93,7 @@
 * [长连接高并发](bing-fa-1/chang-lian-jie-gao-bing-fa.md)
 * [消息队列并发](bing-fa-1/xiao-xi-dui-lie-bing-fa.md)
 * [架构并发](bing-fa-1/jia-gou-bing-fa.md)
+* [redis并发](bing-fa-1/redis-bing-fa.md)
 
 ## 语言的对比
 
