@@ -96,6 +96,7 @@
 ## 语言的对比
 
 * [🩸 nodejs vs java](yu-yan-de-dui-bi/nodejs-vs-java.md)
+* [V8垃圾回收 vs JVM 垃圾回收](yu-yan-de-dui-bi/v8-la-ji-hui-shou-vs-jvm-la-ji-hui-shou.md)
 * [🍪 nodejs的调优](yu-yan-de-dui-bi/nodejs-de-tiao-you.md)
 * [🍪 Java的调优](yu-yan-de-dui-bi/java-de-tiao-you.md)
 * [Nodejs调优](yu-yan-de-dui-bi/nodejs-tiao-you.md)
@@ -104,3 +105,5 @@
   * [记录一次性能调优过程](yu-yan-de-dui-bi/nodejsfrontend-jian-ce/ji-lu-yi-ci-xing-neng-tiao-you-guo-cheng.md)
 * [Java调优](yu-yan-de-dui-bi/java-tiao-you.md)
 * [Java监测](yu-yan-de-dui-bi/java-jian-ce.md)
+* [部署架构](yu-yan-de-dui-bi/bu-shu-jia-gou/README.md)
+  * [为什么内存不够用，运行速度会变慢？](yu-yan-de-dui-bi/bu-shu-jia-gou/wei-shen-me-nei-cun-bu-gou-yong-yun-xing-su-du-hui-bian-man.md)
