@@ -4,6 +4,12 @@
 
 libuv 的核心功能——**事件循环（Event Loop）**
 
+> `uv_run` 的本质是一个巨大的 `while` 循环。 **`while` 循环本身不是阻塞的，但它内部的一个关键函数调用 `uv__io_poll` 是阻塞的，所以 `while` 不会一直占用 CPU 资源。**
+>
+> **这个 `while` 在等待什么呢？**[**等待 `epoll_wait` 返回。**](uv__io_poll.md)
+>
+> 在循环开始时，libuv 会调用一次 `uv__update_time` 来获取当前时间并缓存起来。这样做是为了在本次循环的后续阶段（比如检查定时器是否到期）中，可以高效地使用这个统一的时间戳，避免多次调用系统函数获取时间。
+
 ```c
 int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   int timeout;
@@ -13,18 +19,24 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   r = uv__loop_alive(loop);
   if (!r)
     uv__update_time(loop);
-
+  // 检查是否还有“待办事项”
   while (r != 0 && loop->stop_flag == 0) {
+    // 更新循环的内部时间
     uv__update_time(loop);
+    // 执行到期的定时器
     uv__run_timers(loop);
+    // 执行待处理的回调 (I/O 完成后被推入)
     ran_pending = uv__run_pending(loop);
+    // 执行 idle 句柄
     uv__run_idle(loop);
+    // 执行 prepare 句柄
     uv__run_prepare(loop);
 
     timeout = 0;
     if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
+      // 计算 I/O 轮询的超时时间，并进行 I/O 轮询
       timeout = uv_backend_timeout(loop);
-
+    // 执行 I/O
     uv__io_poll(loop, timeout);
 
     /* Run one final update on the provider_idle_time in case uv__io_poll
@@ -33,8 +45,9 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
      * the timeout == 0) or was already updated b/c an event was received.
      */
     uv__metrics_update_idle_time(loop);
-
+    // 执行 check 句柄
     uv__run_check(loop);
+    // 执行关闭句柄的回调
     uv__run_closing_handles(loop);
 
     if (mode == UV_RUN_ONCE) {
@@ -70,6 +83,11 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 ## uv\_io\_poll
 
 **`uv__io_poll` 是 libuv 事件循环的核心引擎，它驱动着整个事件循环的运转，实现了异步 I/O 的核心功能。**
+
+> `epoll_wait` 返回条件：<br>
+>
+> * **I/O 事件就绪**：当有网络数据到达、新的 TCP 连接建立、或者文件可以写入时，操作系统内核会**唤醒**线程，`epoll_wait` 会立即返回，并告诉 libuv 哪些文件描述符（socket）上有事件发生。
+> * **超时 (`timeout`)**：在调用 `epoll_wait` 之前，libuv 会通过 `uv_backend_timeout(loop)` 计算一个超时时间。这个时间通常是**下一个即将到期的定时器**所需的时间。如果在这段时间内没有任何 I/O 事件，`epoll_wait` 也会在超时后返回。
 
 ```c
 void uv__io_poll(uv_loop_t* loop, int timeout) {
