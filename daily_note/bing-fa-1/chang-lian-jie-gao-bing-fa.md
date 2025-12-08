@@ -6,6 +6,8 @@ icon: water
 
 ## TCP.c
 
+本示例代码主要是为了说明问题，过程参考[文章](https://app.gitbook.com/o/Dh4flEm2pA2yXSN80gFW/s/auhFbVac5R43tFRixEko/)。
+
 ```c
 #include <uv.h>
 #include <stdio.h>
