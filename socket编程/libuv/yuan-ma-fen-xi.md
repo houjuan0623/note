@@ -133,7 +133,7 @@ int main() {
 
 ## epoll\_wait是怎样将新建的主动socket加入到监听队列中的？
 
-1.  **启动监听 (`uv_listen`)** 当你的 `main` 函数调用 `uv_listen` 时，libuv 内部会：
+1.  **启动监听 (`uv_listen`)** 当 `main` 函数调用 `uv_listen` 时，libuv 内部会：
 
     1. 调用 `uv__io_start`。
     2. `uv__io_start` 会将**监听 socket**（ `server_fd`）和 `POLLIN` 事件通过 `epoll_ctl(EPOLL_CTL_ADD, ...)` 添加到 `backend_fd`（epoll 实例）中。
@@ -152,6 +152,10 @@ int main() {
    2. 紧接着，调用 `uv_read_start((uv_stream_t*) client, ...)`，这才是将新 socket 加入监控的关键一步！
    3. `uv_read_start` 内部会再次调用 `uv__io_start`，但这一次，它传递的是**新的 `client_fd`** 和 `POLLIN` 事件。
    4. `uv__io_start` 再次通过 `epoll_ctl(EPOLL_CTL_ADD, ...)` 将这个**新的 `client_fd`** 添加到同一个 `backend_fd`（epoll 实例）中进行监控。
+
+**流程总结：**
+
+`uv_listen` -> `epoll_ctl(ADD, server_fd)` -> `epoll_wait` (阻塞) -> 新连接 -> `epoll_wait` 返回 -> `on_new_connection` -> `uv_accept` 得到 `client_fd` -> `uv_read_start` -> `epoll_ctl(ADD, client_fd)`
 
 ## `uv__io_poll` 什么时候执行？
 
@@ -269,6 +273,8 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 
 ## uv\_\_io\_start
 
+
+
 ```c
 void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
@@ -276,7 +282,12 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   assert(w->fd >= 0);
   assert(w->fd < INT_MAX);
 
+  // 设置期望监听的事件
+  // w 是一个 uv__io_t 类型的结构体，称之为 "I/O watcher"。它包含了文件描述符 fd、回调函数 cb 以及它关心的事件 events 和 pevents。
+  // events 参数是这次调用想要监听的事件，比如 POLLIN (可读) 或 POLLOUT (可写)。
+  // pevents (pending events) 字段存储了下一次事件循环迭代时需要监听的所有事件的集合。这里使用 |= 操作符，意味着可以累加监听的事件。例如，可以先 uv__io_start(..., POLLIN)，然后再 uv__io_start(..., POLLOUT)，最终 pevents 会同时包含 POLLIN 和 POLLOUT。
   w->pevents |= events;
+  // 确保 watchers 数组足够大
   maybe_resize(loop, w->fd + 1);
 
 #if !defined(__sun)
@@ -290,9 +301,12 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 #endif
 
   if (QUEUE_EMPTY(&w->watcher_queue)) // 如果 watcher 不在队列中，就把它加入到 loop->watcher_queue 的尾部
+    // 这个队列是做什么的呢？在 uv__io_poll（事件循环的核心阻塞部分）开始之前，它会遍历这个 watcher_queue，把所有需要更新监听事件的 watcher 通过 epoll_ctl（在 Linux 上）通知给内核。
     QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
 
   // 在 watchers 数组中注册 watcher，方便通过 fd 快速查找
+  // 如果这个 fd 之前没有被监听过（loop->watchers[w->fd] == NULL），就把当前的 w（watcher）存放到数组的 fd 索引位置。
+  // 同时，增加 loop->nfds 计数，这个计数表示当前事件循环正在监听的文件描述符总数。
   if (loop->watchers[w->fd] == NULL) {
     loop->watchers[w->fd] = w;
     loop->nfds++;
@@ -540,6 +554,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       assert(fd >= 0);
       assert((unsigned) fd < loop->nwatchers);
 
+      // watchers[fd] 的时间复杂度是 O(1)
       w = loop->watchers[fd];
 
       if (w == NULL) {
@@ -587,8 +602,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         } else {
           uv__metrics_update_idle_time(loop);
           // 调用当初注册这个 watcher 时指定的回调函数
-          // 对于 tcp.c 服务器的监听 socket，这个 cb 指向的是 uv__server_io (在 uv_listen 内部设置)。uv__server_io 接着会调用你提供的 on_new_connection。
-          // 对于一个已连接的 client socket，这个 cb 指向的是 uv__stream_io (在 uv_read_start 内部设置)。uv__stream_io 接着会调用你提供的 echo_read。
+          // 对于 tcp.c 服务器的监听 socket，这个 cb 指向的是 uv__server_io (在 uv_listen 内部设置)。uv__server_io 接着会调用 on_new_connection。
+          // 对于一个已连接的 client socket，这个 cb 指向的是 uv__stream_io (在 uv_read_start 内部设置)。uv__stream_io 接着会调用 echo_read。
           w->cb(loop, w, pe->events); 
         }
 
