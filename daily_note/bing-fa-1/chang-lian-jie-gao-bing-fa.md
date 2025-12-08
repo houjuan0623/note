@@ -6,7 +6,7 @@ icon: water
 
 ## tcp.c
 
-本示例代码主要是为了说明问题，过程参考[文章](https://app.gitbook.com/o/Dh4flEm2pA2yXSN80gFW/s/auhFbVac5R43tFRixEko/)。
+本示例代码主要是为了说明问题，参考[文章](https://app.gitbook.com/o/Dh4flEm2pA2yXSN80gFW/s/auhFbVac5R43tFRixEko/)。
 
 ```c
 #include <uv.h>
@@ -74,7 +74,69 @@ int main() {
 
 ```
 
-**c**
+## client.c
+
+本示例代码主要是为了说明问题，参考[文章](https://app.gitbook.com/o/Dh4flEm2pA2yXSN80gFW/s/auhFbVac5R43tFRixEko/)。
+
+```c
+#include <uv.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MESSAGE_INTERVAL 1000 // milliseconds
+
+uv_tcp_t client_socket;
+uv_connect_t connect_req;
+int message_count = 100;
+uv_timer_t timer_req;
+
+void on_connect(uv_connect_t *req, int status) {
+    if (status < 0) {
+        fprintf(stderr, "连接失败: %s\n", uv_strerror(status));
+        uv_timer_stop(&timer_req);
+        free(timer_req.data);
+        exit(1); 
+    } else {
+        fprintf(stdout, "连接成功.\n");
+        fflush(stdout);  
+    }
+
+    char message[50];
+    sprintf(message, "hello %d", message_count++);
+    fprintf(stdout, "发送消息: %s\n", message);  // 输出要发送的消息
+    fflush(stdout);  
+
+    uv_buf_t buf = uv_buf_init(message, strlen(message));
+    uv_write_t write_req;
+    uv_write(&write_req, (uv_stream_t*) &client_socket, &buf, 1, NULL); // Ignore write completion
+}
+
+void on_write(uv_write_t *req, int status) {} // We don't need to handle write completion specifically
+
+void send_message(uv_timer_t *timer) {
+    uv_tcp_connect(&connect_req, &client_socket, timer->data, on_connect);
+}
+
+int main() {
+    uv_loop_t *loop = uv_default_loop();
+
+    uv_tcp_init(loop, &client_socket);
+    uv_timer_init(loop, &timer_req);
+
+    struct sockaddr_in dest;
+    uv_ip4_addr("127.0.0.1", 7000, &dest);  // Server address
+    struct sockaddr_in *dest_ptr = malloc(sizeof(struct sockaddr_in));
+    memcpy(dest_ptr, &dest, sizeof(struct sockaddr_in));
+
+    timer_req.data = dest_ptr;  // Store address for use in the timer callback
+
+    uv_timer_start(&timer_req, send_message, MESSAGE_INTERVAL, MESSAGE_INTERVAL);
+
+    return uv_run(loop, UV_RUN_DEFAULT);
+}
+
+```
 
 ## **长连接的高并发是怎样实现的？**
 
