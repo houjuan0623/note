@@ -157,6 +157,38 @@ int main() {
 
 `uv__io_poll` 是在 `uv_run` 函数的 `while` 循环中被调用的。它是事件循环的一个关键阶段，专门负责等待 I/O 事件。
 
+`uv__io_poll` 在事件循环的每一次迭代中，在处理完定时器、`idle`、`prepare` 等回调之后，就会被执行。它的主要职责就是调用操作系统的 I/O 多路复用机制（如 `epoll_wait`）来等待网络或文件描述符（fd）上的事件。
+
+## `uv__io_poll` 怎么能遍历到 `uv__io_start` 注册的事件？
+
+**1. `uv__io_start` 的工作：登记和排队**
+
+调用一个启动 I/O 监听的函数时（比如 `uv_tcp_listen` 或 `uv_read_start`），它最终会调用 `uv__io_start`。
+
+`uv__io_start` **并不直接**调用 `epoll_ctl` 去和内核交互。它只是做了一个“登记”工作：
+
+* 更新 `uv__io_t` watcher 结构体中的 `pevents`（pending events）字段，标记它对哪些事件感兴趣。
+* 将这个 watcher 放入 `loop->watcher_queue` 这个**待处理队列**中。
+
+**2. `uv__io_poll` 的工作：批量处理和等待**
+
+稍后，当事件循环运行到 `uv__io_poll` 阶段时，它会做两件大事：
+
+**第一件事：处理 `watcher_queue` 队列**
+
+在调用 `epoll_wait` 之前，`uv__io_poll` 会先遍历 `loop->watcher_queue`，把所有待处理的 watcher 都处理掉。`uv__io_start` 提交的“更新请求”在此时被**批量处理。**
+
+**第二件事：等待事件**
+
+处理完队列后，`uv__io_poll` 才调用 `epoll_wait` 进入阻塞等待状态。
+
+当 `epoll_wait` 返回时，它会带回一系列发生了事件的 fd。`uv__io_poll` 就会根据这些 fd，从 `loop->watchers` 数组中快速找到对应的 `uv__io_t` watcher，并执行其注册的回调函数（比如 `uv__server_io` 或 `echo_read`）。
+
+`uv__io_start` 和 `uv__io_poll` 之间的关系可以概括为**生产者-消费者模型**：
+
+* **生产者 (`uv__io_start`)**: 当需要监听一个新的 I/O 事件时，`uv__io_start` 并不立即去打扰内核，而是把这个“请求”放入一个名为 `watcher_queue` 的队列中。
+* **消费者 (`uv__io_poll`)**: 在每次事件循环的 I/O 阶段，`uv__io_poll` 首先会清空 `watcher_queue` 队列，通过 `epoll_ctl` 将所有新的监听请求一次性地、批量地告知内核。然后，它才调用 `epoll_wait` 等待所有已注册事件的发生。
+
 ## uv\_run
 
 libuv 的核心功能——**事件循环（Event Loop）**
@@ -235,6 +267,40 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 }
 ```
 
+## uv\_\_io\_start
+
+```c
+void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
+  assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
+  assert(0 != events);
+  assert(w->fd >= 0);
+  assert(w->fd < INT_MAX);
+
+  w->pevents |= events;
+  maybe_resize(loop, w->fd + 1);
+
+#if !defined(__sun)
+  /* The event ports backend needs to rearm all file descriptors on each and
+   * every tick of the event loop but the other backends allow us to
+   * short-circuit here if the event mask is unchanged.
+   */
+  // 更新 watcher 期望监听的事件
+  if (w->events == w->pevents)
+    return;
+#endif
+
+  if (QUEUE_EMPTY(&w->watcher_queue)) // 如果 watcher 不在队列中，就把它加入到 loop->watcher_queue 的尾部
+    QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+
+  // 在 watchers 数组中注册 watcher，方便通过 fd 快速查找
+  if (loop->watchers[w->fd] == NULL) {
+    loop->watchers[w->fd] = w;
+    loop->nfds++;
+  }
+}
+
+```
+
 ## uv\_io\_poll
 
 **`uv__io_poll` 是 libuv 事件循环的核心引擎，它驱动着整个事件循环的运转，实现了异步 I/O 的核心功能。**
@@ -285,6 +351,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
   memset(&e, 0, sizeof(e));
 
+  // 通过这种方式，uv__io_start 提交的“更新请求”在这里被批量处理。libuv 将多次对不同 fd 的监听设置操作，合并到事件循环的一个阶段来完成，减少了系统调用的次数。
   while (!QUEUE_EMPTY(&loop->watcher_queue)) {
     q = QUEUE_HEAD(&loop->watcher_queue);
     QUEUE_REMOVE(q);
@@ -519,7 +586,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           have_signals = 1;
         } else {
           uv__metrics_update_idle_time(loop);
-          w->cb(loop, w, pe->events);
+          // 调用当初注册这个 watcher 时指定的回调函数
+          // 对于 tcp.c 服务器的监听 socket，这个 cb 指向的是 uv__server_io (在 uv_listen 内部设置)。uv__server_io 接着会调用你提供的 on_new_connection。
+          // 对于一个已连接的 client socket，这个 cb 指向的是 uv__stream_io (在 uv_read_start 内部设置)。uv__stream_io 接着会调用你提供的 echo_read。
+          w->cb(loop, w, pe->events); 
         }
 
         nevents++;
@@ -569,10 +639,6 @@ update_timeout:
 }
 
 ```
-
-
-
-
 
 ## uv\_\_io\_t
 
