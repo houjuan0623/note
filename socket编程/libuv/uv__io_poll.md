@@ -82,7 +82,7 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 
 **`uv__io_poll` 是 libuv 事件循环的核心引擎，它驱动着整个事件循环的运转，实现了异步 I/O 的核心功能。**
 
-> `epoll_wait` 返回条件：<br>
+> `epoll_wait` 返回条件：
 >
 > * **I/O 事件就绪**：当有网络数据到达、新的 TCP 连接建立、或者文件可以写入时，操作系统内核会**唤醒**线程，`epoll_wait` 会立即返回，并告诉 libuv 哪些文件描述符（socket）上有事件发生。
 > * **超时 (`timeout`)**：在调用 `epoll_wait` 之前，libuv 会通过 `uv_backend_timeout(loop)` 计算一个超时时间。这个时间通常是**下一个即将到期的定时器**所需的时间。如果在这段时间内没有任何 I/O 事件，`epoll_wait` 也会在超时后返回。
