@@ -6,7 +6,7 @@ libuv 的核心功能——**事件循环（Event Loop）**
 
 > `uv_run` 的本质是一个巨大的 `while` 循环。 **`while` 循环本身不是阻塞的，但它内部的一个关键函数调用 `uv__io_poll` 是阻塞的，所以 `while` 不会一直占用 CPU 资源。**
 >
-> **这个 `while` 在等待什么呢？**[**等待 `epoll_wait` 返回。**](uv__io_poll.md#uv__io_t)
+> **这个 `while` 在等待什么呢？**[**等待 `epoll_wait` 返回。**](uv__io_poll.md#uv_io_poll)
 >
 > 在循环开始时，libuv 会调用一次 `uv__update_time` 来获取当前时间并缓存起来。这样做是为了在本次循环的后续阶段（比如检查定时器是否到期）中，可以高效地使用这个统一的时间戳，避免多次调用系统函数获取时间。
 
@@ -77,8 +77,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   return r;
 }
 ```
-
-
 
 ## uv\_io\_poll
 
