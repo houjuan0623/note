@@ -221,6 +221,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         no_epoll_pwait = 1;
       }
     } else {
+      // 默认使用水平触发，有数据就会发出通知事件
       nfds = epoll_wait(loop->backend_fd,
                         events,
                         ARRAY_SIZE(events),
@@ -409,6 +410,10 @@ update_timeout:
 }
 
 ```
+
+
+
+
 
 ## uv\_\_io\_t
 
