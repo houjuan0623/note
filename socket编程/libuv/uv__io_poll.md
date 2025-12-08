@@ -1,5 +1,162 @@
 # 🐶 uv\_\_io\_poll
 
+## 测试代码
+
+### tcp.c
+
+```c
+#include <uv.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+    buf->base = (char*) malloc(suggested_size);
+    buf->len = suggested_size;
+}
+
+void echo_write(uv_write_t *req, int status) {
+    if (status < 0) {
+        fprintf(stderr, "Write error: %s\n", uv_strerror(status));
+    }
+    free(req);
+}
+
+void echo_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
+    if (nread < 0) {
+        if (nread != UV_EOF)
+            fprintf(stderr, "Read error: %s\n", uv_err_name(nread));
+        uv_close((uv_handle_t*) client, NULL);
+    } else if (nread > 0) {
+        uv_write_t *req = (uv_write_t*) malloc(sizeof(uv_write_t));
+        uv_buf_t wrbuf = uv_buf_init(buf->base, nread);
+        uv_write(req, client, &wrbuf, 1, echo_write);
+    }
+
+    if (buf->base)
+        free(buf->base);
+}
+
+void on_new_connection(uv_stream_t *server, int status) {
+    if (status < 0) {
+        fprintf(stderr, "New connection error: %s\n", uv_strerror(status));
+        return;
+    }
+
+    uv_tcp_t *client = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
+    uv_tcp_init(uv_default_loop(), client);
+
+    if (uv_accept(server, (uv_stream_t*) client) == 0) {
+        uv_read_start((uv_stream_t*) client, alloc_buffer, echo_read);
+    } else {
+        uv_close((uv_handle_t*) client, NULL);
+    }
+}
+
+int main() {
+    uv_tcp_t server;
+    uv_tcp_init(uv_default_loop(), &server);
+
+    struct sockaddr_in addr;
+    uv_ip4_addr("0.0.0.0", 7000, &addr);
+
+    uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0);
+    int r = uv_listen((uv_stream_t*) &server, 128, on_new_connection);
+    if (r) {
+        fprintf(stderr, "Listen error: %s\n", uv_strerror(r));
+        return 1;
+    }
+    return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+}
+```
+
+### client.c
+
+```c
+#include <uv.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MESSAGE_INTERVAL 1000 // milliseconds
+
+uv_tcp_t client_socket;
+uv_connect_t connect_req;
+int message_count = 100;
+uv_timer_t timer_req;
+
+void on_connect(uv_connect_t *req, int status) {
+    if (status < 0) {
+        fprintf(stderr, "连接失败: %s\n", uv_strerror(status));
+        uv_timer_stop(&timer_req);
+        free(timer_req.data);
+        exit(1); 
+    } else {
+        fprintf(stdout, "连接成功.\n");
+        fflush(stdout);  
+    }
+
+    char message[50];
+    sprintf(message, "hello %d", message_count++);
+    fprintf(stdout, "发送消息: %s\n", message);  // 输出要发送的消息
+    fflush(stdout);  
+
+    uv_buf_t buf = uv_buf_init(message, strlen(message));
+    uv_write_t write_req;
+    uv_write(&write_req, (uv_stream_t*) &client_socket, &buf, 1, NULL); // Ignore write completion
+}
+
+void on_write(uv_write_t *req, int status) {} // We don't need to handle write completion specifically
+
+void send_message(uv_timer_t *timer) {
+    uv_tcp_connect(&connect_req, &client_socket, timer->data, on_connect);
+}
+
+int main() {
+    uv_loop_t *loop = uv_default_loop();
+
+    uv_tcp_init(loop, &client_socket);
+    uv_timer_init(loop, &timer_req);
+
+    struct sockaddr_in dest;
+    uv_ip4_addr("127.0.0.1", 7000, &dest);  // Server address
+    struct sockaddr_in *dest_ptr = malloc(sizeof(struct sockaddr_in));
+    memcpy(dest_ptr, &dest, sizeof(struct sockaddr_in));
+
+    timer_req.data = dest_ptr;  // Store address for use in the timer callback
+
+    uv_timer_start(&timer_req, send_message, MESSAGE_INTERVAL, MESSAGE_INTERVAL);
+
+    return uv_run(loop, UV_RUN_DEFAULT);
+}
+
+```
+
+## epoll\_wait是怎样将新建的主动socket加入到监听队列中的？
+
+1.  **启动监听 (`uv_listen`)** 当你的 `main` 函数调用 `uv_listen` 时，libuv 内部会：
+
+    1. 调用 `uv__io_start`。
+    2. `uv__io_start` 会将**监听 socket**（ `server_fd`）和 `POLLIN` 事件通过 `epoll_ctl(EPOLL_CTL_ADD, ...)` 添加到 `backend_fd`（epoll 实例）中。
+
+    对于监听 socket 而言，`POLLIN` 事件的含义是“**有一个新的连接已经完成三次握手，可以被 `accept` 了**”。
+2. **等待事件 (`uv_run` -> `uv__io_poll` -> `epoll_wait`)**
+   1. 事件循环进入 `uv__io_poll` 函数，调用 `while (!QUEUE_EMPTY(&loop->watcher_queue))` 遍历 watcher\_queue，处理所有由 uv\_\_io\_start 提交的 watcher。最终调用 `epoll_wait(loop->backend_fd, ...)`。
+   2. 然后，主线程**阻塞**在 `epoll_wait`，休眠并等待内核通知，不消耗 CPU。
+3. **新连接到达，`epoll_wait` 返回**
+   1. 当一个客户端连接成功，内核认为 `server_fd` 变为“可读”，于是唤醒 `epoll_wait`。
+   2. `epoll_wait` 返回，并告诉 libuv：“`server_fd` 上有 `POLLIN` 事件（之前已经通过 `uv_listen` 监听了 `POLLIN` 事件）！”
+4. **执行 `on_new_connection` 回调**
+   1. libuv 发现是 `server_fd` 的事件，于是调用注册的回调 `on_new_connection`。
+5. **接受连接并添加新 Socket (`uv_accept` -> `uv_read_start`)**
+   1. 在 `on_new_connection` 中，调用 `uv_accept`，它从内核中接受这个新连接，得到一个新的**连接 socket**（我们称之为 `client_fd`）。
+   2. 紧接着，调用 `uv_read_start((uv_stream_t*) client, ...)`，这才是将新 socket 加入监控的关键一步！
+   3. `uv_read_start` 内部会再次调用 `uv__io_start`，但这一次，它传递的是**新的 `client_fd`** 和 `POLLIN` 事件。
+   4. `uv__io_start` 再次通过 `epoll_ctl(EPOLL_CTL_ADD, ...)` 将这个**新的 `client_fd`** 添加到同一个 `backend_fd`（epoll 实例）中进行监控。
+
+## `uv__io_poll` 什么时候执行？
+
+`uv__io_poll` 是在 `uv_run` 函数的 `while` 循环中被调用的。它是事件循环的一个关键阶段，专门负责等待 I/O 事件。
+
 ## uv\_run
 
 libuv 的核心功能——**事件循环（Event Loop）**
@@ -138,17 +295,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
 
-    e.events = w->pevents;
+    e.events = w->pevents;  // 获取期望监听的事件
     e.data.fd = w->fd;
 
     if (w->events == 0)
-      op = EPOLL_CTL_ADD;
+      op = EPOLL_CTL_ADD;  // 如果是新的，就 ADD
     else
-      op = EPOLL_CTL_MOD;
+      op = EPOLL_CTL_MOD;  // 如果是已有的，就 MOD
 
     /* XXX Future optimization: do EPOLL_CTL_MOD lazily if we stop watching
      * events, skip the syscall and squelch the events after epoll_wait().
      */
+    // *** 在这里才真正调用 epoll_ctl 与内核交互 ***
     if (epoll_ctl(loop->backend_fd, op, w->fd, &e)) {
       if (errno != EEXIST)
         abort();
@@ -192,7 +350,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
    */
   no_epoll_pwait = uv__load_relaxed(&no_epoll_pwait_cached);
   no_epoll_wait = uv__load_relaxed(&no_epoll_wait_cached);
-
+  // for 会把执行权转移给系统函数 epoll_pwait
   for (;;) {
     /* Only need to set the provider_entry_time if timeout != 0. The function
      * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
@@ -211,6 +369,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         abort();
 
     if (no_epoll_wait != 0 || (sigmask != 0 && no_epoll_pwait == 0)) {
+      // *** 阻塞等待 I/O 事件 ***
       nfds = epoll_pwait(loop->backend_fd,
                          events,
                          ARRAY_SIZE(events),
@@ -302,7 +461,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       loop->watchers[loop->nwatchers] = x.watchers;
       loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
     }
-
+    // *** 处理返回的事件 ***
     for (i = 0; i < nfds; i++) {
       pe = events + i;
       fd = pe->data.fd;
