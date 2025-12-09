@@ -87,6 +87,7 @@
 
 ## 并发
 
+* [怎样考虑并发冲突的问题？](bing-fa-1/zen-yang-kaolbing-fa-chong-tu-de-wen-ti.md)
 * [网络并发](bing-fa-1/wang-luo-bing-fa.md)
 * [程序并发](bing-fa-1/cheng-xu-bing-fa.md)
 * [数据库并发](bing-fa-1/shu-ju-ku-bing-fa.md)
