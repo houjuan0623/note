@@ -216,6 +216,12 @@ async function buy() {
 
 Node.js 提供了 `worker_threads` 模块，允许你创建真正的操作系统级线程来执行 JavaScript 代码，主要用于 CPU 密集型任务。当使用 `worker_threads` 并且在工作线程和主线程之间共享内存时，那么[传统的线程安全问题](cheng-xu-bing-fa.md#bing-fa-xu-yao-kaolde-wen-ti)都要考虑进来。
 
+为此，Node.js（基于 V8）提供了 `Atomics` 对象，这就是 Node.js 的“锁”：
+
+* `Atomics.wait(int32Array, index, value)`: 相当于 Java 的 `Object.wait()` 或锁的挂起。
+* `Atomics.notify(int32Array, index, count)`: 相当于 Java 的 `Object.notify()`。
+* `Atomics.compareExchange(...)`: 典型的 CAS (Compare-And-Swap) 原子操作。
+
 ### 关于集群cluster模块
 
 cluster 允许你创建多个 Node.js **进程**（不是线程）来利用多核 CPU。每个进程有自己独立的内存空间。它们之间的状态共享通常需要通过 IPC（进程间通信）或者外部存储（如 Redis、数据库）来实现，这时关注点是数据一致性和同步，而不是传统意义上的同一进程内的线程安全。
