@@ -1,6 +1,14 @@
-# 🐶 select\&poll\&epoll
+# 🐶 IO 相关问题
 
 ## 关于IO复用
+
+### 引言
+
+一次完整的网络读操作分为两个阶段。
+
+**阶段一：等待数据就绪 (Waiting for Data)：**&#x7B49;待网络上的数据包到达网卡，并被操作系统拷贝到内核的TCP接收缓冲区。
+
+**阶段二：数据复制 (Copying Data)：**&#x5C06;数据从内核缓冲区拷贝到我们应用程序的用户空间内存中。
 
 ### 传统I/O模型
 
@@ -10,9 +18,13 @@
 
 **一个连接一个线程：** 在传统的 I/O 模型中，每个客户端连接都需要一个独立的线程（或进程）来处理。当并发连接数很大时，会创建大量的线程，导致系统资源占用过多，上下文切换频繁，效率低下。
 
-### 什么是IO复用？
+### IO复用
 
-**进程需要被内核告知的能力，使得内核一旦发现进程指定的一个或多个IO条件就绪，它就通知进程。**
+**什么是IO复用：进程需要被内核告知的能力，使得内核一旦发现进程指定的一个或多个IO条件就绪，它就通知进程。**
+
+> IO复用的关键在于，进程在发起监视请求后，通常会**阻塞在负责监视的那个函数上**（例如 `select`, `poll`, `epoll_wait`）。当任何一个被监视的IO就绪时，这个函数就会返回，然后进程再去处理具体的IO操作。
+>
+> IO复用的**事件驱动**本质：**用户进程不是主动去“问”，而是被动地等待内核“通知”**。
 
 ### I/O复用模型
 
@@ -26,538 +38,50 @@
 
 ### I/O 复用通常通过以下几种方式实现
 
+在非阻塞I/O的典型实践中，即I/O多路复用（如 `select`, `poll`, `epoll`），这个问题的答案需要区分“等待阶段”和“复制阶段”。
+
+*   进入“[**等待数据就绪**](./#yin-yan)”阶段的函数是：`select()`, `poll()`, `epoll_wait()`。
+
+    > 这些函数的作用是“监听”。你的进程会调用它们中的一个，并把自己阻塞在这个函数上。操作系统会替你监控你所关心的所有套接字（File Descriptors）。
+    >
+    > 当任何一个套接字的数据准备就绪时（即阶段一完成），这个函数就会返回，并告诉你哪些套接字可以进行I/O操作了。
+    >
+    > 所以，这类函数承担了主要的、也是最漫长的“等待”职责，它们是进入IO“等待”阶段的入口。
+*   触发“[**数据从内核到用户空间复制**](./#yin-yan)”阶段并在此期间阻塞进程的函数是：`recv()`, `read()`, `recvfrom()` 等。
+
+    > 当 `epoll_wait()` 函数返回并告诉你某个套接字（例如 `sockfd`）已经可读时，这仅仅意味着阶段一（等待数据就绪）已经完成了。内核的接收缓冲区里已经有数据了。
+    >
+    > 此时，你的程序需要主动调用 `recv(sockfd, ...)` 来把这些数据真正地拿到手。这个 `recv()` 调用会执行阶段二（数据复制）。
+    >
+    > 在这个数据从内核空间复制到用户空间的过程中，你的进程是**阻塞**的。`recv()` 函数必须等到数据完全复制到你指定的buffer后才会返回。
+    >
+    > **为什么这仍然被称为“非阻塞IO模型”？**
+    >
+    > 1. 真正的瓶颈被解决了：一次网络I/O最耗时、最不可预测的部分是阶段一（等待数据）。`epoll_wait` 等函数虽然会阻塞，但它可以同时等待成千上万个连接，极大地提高了效率。
+    > 2. 数据复制阶段的“阻塞”是短暂且确定的：当 `recv()` 被调用时，数据已经在内核里了。从内核拷贝数据到用户空间是一个纯粹的内存操作，速度非常快（通常是微秒级）。相比于可能长达数秒甚至更久的网络等待，这个短暂的“阻塞”是可以忽略不计的。
 * **select:** 允许同时监控多个文件描述符，当其中任何一个文件描述符就绪时，`select` 会返回。
 * **poll:** 与 `select` 类似，但没有最大文件描述符数量的限制。
 * **epoll:** 一种更高效的 I/O 多路复用机制，在 Linux 系统上广泛使用。
 
-## select
+## IO模型分类
 
-select 允许进程指示内核等待多个事件中的任何一个发生，并只在有一个或多个事件发生或经历一段指定的时间后才唤醒它。
+I/O 模型的选择是决定服务器架构最关键的因素。一次 I/O 操作（以读取为例）通常包含两个阶段：[1) 等待数据准备就绪；2) 将数据从内核空间复制到用户进程空间 。](./#chuan-tong-io-mo-xing)基于这两个阶段中进程的不同行为，衍生出多种 I/O 模型。
 
-也就是说，我们调用select告知内核对哪些描述符有兴趣以及等到多长时间。我们感兴趣的描述符不局限于套接字，任何描述符都可以使用select来测试。
+*   **阻塞 I/O (Blocking I/O, BIO):** 在Linux系统中，默认创建的套接字处于阻塞模式。这意味着当你的程序对这个套接字发起一个I/O系统调用时（例如 `recv`），如果其对应的内核I/O缓冲区状态不满足条件（例如接收缓冲区是空的），那么这个系统调用就会阻塞，操作系统会把你的进程挂起，直到网络数据到达、缓冲区里有了数据，才会唤醒你的进程，并将数据从内核缓冲区拷贝到你的程序内存中，最后`recv`调用返回。
 
-```c
-#include <sys/select.h>
-#include <sys/time.h>
+    > “阻塞”（Blocking）和“非阻塞”（Non-blocking）是套接字本身的一种属性或工作模式。当我们创建一个套接字时，操作系统默认会将其设置为“阻塞模式”。
 
-int select(int maxfdp1, fd_set *readset, fd_set *write_set, fd_set *exceptset, const struct timeval *timeout);
-```
 
-**maxfdp1：**指定待测试的描述符的个数，它的值是待测试的最大描述符加1，因此被命名为maxfdp1。比如我们对描述符1、4、5感兴趣，那么maxfdp1就是6。是6不是5的原因在于：描述符是从0开始的。
+* **非阻塞 I/O (Non-blocking I/O, NIO):** 在此模型中，当用户进程发起 I/O 调用时，如果数据未就绪，内核会立即返回一个错误码，而不是阻塞进程。这意味着进程可以继续执行其他任务，但需要通过轮询的方式反复查询内核数据是否准备好。然而，当数据最终就绪时，进程在执行从内核到用户空间的数据复制阶段时仍然是阻塞的 。
+* **I/O 多路复用 (I/O Multiplexing):** 此模型有时也被称为事件驱动 I/O (Event-Driven I/O)。进程通过一次系统调用（如 `select`、`poll` 或 `epoll`）同时监视多个文件描述符。这个调用本身是阻塞的，但它能在任何一个被监视的文件描述符就绪时返回。随后，进程再发起真正的 `read` 调用来读取数据。其关键优势在于，单个线程或进程能够高效地管理成千上万个网络连接 。这是 Nginx 和 libuv 实现高性能的核心。
+* **异步 I/O (Asynchronous I/O, AIO):** 这是“真正”的异步模型。**用户进程发起 I/O 操作后，系统调用会立即返回，进程可以继续执行其他任务。内核会独立完成数据准备和数据复制的全过程。**&#x5F53;整个 I/O 操作完成后，内核会通过信号或回调函数通知用户进程 。在此模型中，用户进程在 I/O 操作的任何阶段都不会被阻塞。
 
-**fd\_set（描述符集）：**readset、writeset、exceptset帮助我们指定让内核监听读、写和异常的描述符。目前支持的异常条件有两个：
 
-1. 某个套接字的带外数据到达。带外数据指的是一个连接的某端发生了重要的事情，而且希望迅速通告其对端。这里“迅速”意味着这种通知应该在已经排队等待发送的任何“普通”数据之前发送。也就是说：带外数据被认为比普通数据具有更高的优先级。
-2. 某个已置为分组模式的伪终端存在可从其主端读取的控制状态信息。
-   * **伪终端（pseudo-terminal）**： 是一种软件模拟的终端设备，通常由一对主从设备组成。主设备用于控制终端的行为，从设备用于模拟实际的终端。
-   * **分组模式（packet mode）**： 是一种伪终端的特殊操作模式，在这种模式下，终端输入和输出的数据以数据包（packet）的形式进行传输，而不是逐个字符传输。
-   * **主设备（master side）**： 伪终端的主设备，用于控制终端的行为，例如设置终端属性、发送信号等。
-   * **控制状态信息**： 指的是关于伪终端当前状态的信息，例如终端大小、波特率、输入模式等。
 
-由以下四个宏负责操作描述符集：
-
-```c
-void FD_ZERO(fd_set *fdset);  /* clear all bite in fdset */
-void FD_SET(int fd, fd_set *fdset);  /* turn on the bit for fd in fdset */
-void FD_CLR(int fd, fd_set *fdset);  /* turn off the bit for fd in fdest */
-int FD_ISSET(int fd, fd_set *fdset);  /* is the bit for fd on in fdset? */
-```
-
-举个例子，我们用下面的代码顶一个一个fd\_set类型变量，然后打开描述符1、4、5的对应位：
-
-```c
-fd_set rset;
-FD_ZERO(&rset);  /* 初始化rset，将rset中是所有的位置置为0 */
-FD_SET(1, &rset);  /* 在rset中打开描述符1，rset中可以记录1024（一般是1024）个描述符，rset在1对应的位置置为1 */
-FD_SET(4, &rset);
-FD_SET(5, &rset);
-```
-
-select中间的三个参数，如果我们对某个条件不感兴趣，可以将其置为空指针。
-
-**timeout：**告知内核等待所指定描述符中的任何一个描述符就绪的最长时间。其中timeval结构用于指定这段时间的秒数和微秒数。
-
-```c
-struct timeval{
-    long tv_sec;  /* seconds */
-    long tv_usec;  /* microseconds */
-}
-```
-
-这个参数有三个可能：
-
-1. 永远等待下去：仅在有一个描述符准备好I/O以后才返回。此时该参数对应空指针。
-2. 等待一个固定的时间：在有一个描述符准备好I/O时才返回，但是不超过由该参数所指向的time\_val结构中指定的秒数和微秒数。
-3. 根本不等待：检查描述符后立即返回，这称为轮询（轮询所有描述符）。该参数指向一个time\_val结构，值为0。
-
-> 如果中间的三个参数对应的指针都是空，我们会得到一个比unix的sleep函数更为精确的定时器（sleep是以秒为单位）。
-
-### select最大描述符数
-
-最初设计select的时候，操作系统通常对每个进程可用的最大描述符的上线进行了设置，但是当今的unix版本允许每个进程使用事实上无限数目的描述符。
-
-下面的代码取自\<sys/types.h>
-
-```c
-#ifndef FD_SETSIZE
-#define FD_SETSIZE    256
-#endif
-```
-
-为了解决描述符数量上限问题，我们很容易想到将FD\_SETSIZE定义为某个更大的值，但是这样事实上是行不通的。主要是从可移植性的角度考虑这个问题。
-
-### select实现TCP回射服务器程序
-
-在第一个客户建立连接之前TCP服务端应该存在一个监听描述符。下图中用一个圆点来表示。
-
-<figure><img src=".gitbook/assets/image (13).png" alt=""><figcaption><p>第一个客户建立连接前的服务器状态</p></figcaption></figure>
-
-此时服务器应该维护一个描述符集，假设服务器是在前台（通过中断控制台启动的），那么描述符0、1、2将会分别被设置为标准输入、标准输出、标准错误输出。所以监听套接字的第一个可用监听描述符是3。下图中展示的client数组，包含每个客户的已连接套接字描述符，数组中的数据被初始化为-1。
-
-<figure><img src=".gitbook/assets/image (18).png" alt=""><figcaption><p>仅有一个监听套接字的TCP服务器的数据结构</p></figcaption></figure>
-
-此时描述符集中唯一的非零项是表示监听套接字的项。此时maxfd1为4。
-
-第一个客户和服务器建立连接的时候，监听套接字变为可读，我们的服务器于是调用accept。下面假设accept返回的描述符是4。
-
-<figure><img src=".gitbook/assets/image (16).png" alt=""><figcaption><p>第一个客户建立连接后的TCP服务器</p></figcaption></figure>
-
-client数组会记录下每个新的已连接描述符，并把它加入到描述符集中去。
-
-<figure><img src=".gitbook/assets/image (19).png" alt=""><figcaption><p>第一个客户连接建立后的数据结构</p></figcaption></figure>
-
-第二个客户和服务器建立连接的时候，监听套接字变为可读，我们的服务器于是调用accept。下面假设accept返回的描述符是5。
-
-<figure><img src=".gitbook/assets/image (20).png" alt=""><figcaption><p>第二个客户建立连接后的TCP服务器</p></figcaption></figure>
-
-新的已连接描述符必须被记住，TCP服务器对应下面的数据结构。
-
-<figure><img src=".gitbook/assets/image (21).png" alt=""><figcaption><p>第二个客户建立连接后的数据结构</p></figcaption></figure>
-
-接下来我们假设第一个客户终止它的连接，该客户的TCP发送一个FIN，将会使得描述符4变为可读。当服务器读这个已连接套接字时，read将返回0，我们于是关闭该套接字并相应地更新数据结构。把client\[0]置为-1，把描述符集中描述符4的位设置为0。如下图所示：\
-
-
-<figure><img src=".gitbook/assets/image (23).png" alt=""><figcaption><p>第一个客户终止连接后的数据结构</p></figcaption></figure>
-
-当有其他的客户到达时，我们使用client数组中的第一个可用项记录其已连接套接字的描述符，同时将该描述符更新到对应的描述符集中。
-
-下面是上述版本对应的服务器代码：
-
-```c
-#include "udp.h"
-
-int main(int argc, char **argv){
-    int i, maxi, maxfd, listenfd, connfd, sockfd;
-    int nready, client[FD_SETSIZE];
-    ssize_t n;
-    fd_set rset, allset;
-    char buf[MAXLINE];
-    socklen_t clilen;
-    struct sockaddr_in cliaddr, servaddr;
-    
-    listenfd = Socket(AF_INET, SOCK_STREAM, 0);
-    
-    bzero(&servaddr, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(SERV_PORT);
-    
-    Bind(listenfd, (SA *) &servaddr, sizeof(servaddr));
-    
-    Listen(listenfd, LISTENQ);
-    maxfd = listenfd;
-    maxi = -1;
-    // 初始化cient array
-    for(i = 0; i < F_SETSIZE; i++)
-        client[i] = -1;
-    FD_ZERO(&allset);
-    FD_SET(listenfd, &allset);
-    
-    for(;;) {
-        rset =  allset;
-        // 首次循环的时候，select的唯一描述符是监听描述符。
-        // select等待某个事件的发生：或是新客户连接的建立，或是数据、FIN或RST的到达。
-        nready = Select(maxfd+1, &rset, NULL, NULL, NULL);
-        // 检查listenfd是否可读，可读的话说明监听到了新的连接到来。下面我们调用accept并相应地更新数据结构
-        // 使用client数组中的第一个未用项记录这个已连接描述符。
-        if(FD_ISSET(listenfd, &rset)){
-            clilen = sizeof(cliaddr);
-            connfd = Accept(listenfd, (SA *) &cliaddr, &clilen);
-            
-            for(i = 0; i < FD_SETSIZE; i++){
-                if(client[i] < 0){
-                    // 位置i对应的client[i]为-1，说明此位置可以用来记录描述符。
-                    client[i] = connfd;
-                    ;
-                }
-            }
-            if(i == FD_SETSIZE) {
-                err_quit("too many clients");
-            }
-            FD_SET(connfd, &allset); // 设置描述符集
-            if(connfd > maxfd)
-                maxfd = connfd;
-            if(i > maxi)
-                maxi = i;
-            // 使用select的返回值来避免检查未就绪的描述符。
-            if(--nready <= 0)
-                continue; // 说明只有一个listenfd接收到数据了，其他的描述符还没有接收到数据
-        }
-        for(i = 0; i <= maxi; i++){
-            if((sockfd = client[i]) < 0)
-                continue; // i位置对应-1，之前连接过，但是后来断开了
-            if(FD_ISSET(sockfd, &rset)) {
-                // 如果连接被对方关闭，返回值为 0，表示已经读取到文件末尾（FIN）
-                if((n = Read(sockfd, buf, MAXLINE)) == 0){
-                    // 此时客户端主动关闭了连接
-                    Close(sockfd);
-                    FD_CLR(sockfd, &allset);
-                    client[i] = -1;
-                } else {
-                    Writen(sockfd, buf, n);
-                }
-                if(--nready <= 0)
-                    break;
-            }
-        }
-    }
-}
-```
-
-## poll
-
-```c
-#include <poll.h>
-// 返回：若有就绪描述符，就返回其数目，若超时则为0，若出错则为-1。
-int poll(struct pollfd *fdarray, unsigned long nfdx, int timeout);
-```
-
-第一个参数是指向结构数组第一个元素的指针。每个数组元素都是pollfd的结构，用于指定测试某个给定描述符fd的条件。
-
-```c
-struct pollfd {
-    int fd; // 描述符
-    short events; // 针对该描述符感兴趣的事件
-    short revents; // 在fd上发生的事件（和events相对应）
-}
-```
-
-<table><thead><tr><th width="172" align="center">常        值</th><th width="175" align="center">作为events的输入？</th><th width="195" align="center">作为revents的输入？</th><th align="center">说     明</th></tr></thead><tbody><tr><td align="center">POLLIN<br>POLLRDNORM<br>POLLRDBAND<br>POLLPRI</td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center">普通或优先级数据可读<br>普通数据可读<br>优先级数据可读<br>高优先级数据可读</td></tr><tr><td align="center">POLLOUT<br>POLLWRNORM<br>POLLERBAND</td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center">普通数据或优先级可写<br>普通数据可写<br>优先级数据可写</td></tr><tr><td align="center">POLLERR<br>POLLHUP<br>POLLNVAL</td><td align="center"></td><td align="center"><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span><br><span data-gb-custom-inline data-tag="emoji" data-code="26ab">⚫</span></td><td align="center">发生错误<br>发生挂起<br>描述非打开的文件</td></tr></tbody></table>
-
-上表中POLLIN等数据可以作为events的值赋给pollfd，但是POLLERR等不能作为events的值赋给pollfd。右侧说明中表达的是该常量对应的含义。
-
-poll函数不存在[#select-zui-da-miao-shu-fu-shu](./#select-zui-da-miao-shu-fu-shu "mention")所引起的问题。因为分配一个pollfd结构的数组并把该数组中元素的数目通知内核成了调用者的责任，内核不需要知道类似fd\_set的数据。
-
-### poll实现TCP回射服务器
-
-```c
-#include "unp.h"
-#include <limits.h>
-
-int main(int argc, chat **argv){
-    int i, maxi, listenfd, connfd, sockfd;
-    int nready;
-    ssize_t n;
-    char buf[MAXLINE];
-    socklen_t chilen;
-    struct pollfd client[OPEN_MAX]; // 这里设置client数组长度为OPEN_MAX
-    struct sockaddr_in, cliaddr, servaddr;
-    
-    listenfd = Socket(AF_INFT, SOCK_STREAM, 0);
-    
-    bzero(&servaddr, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(SERV_PORT);
-    
-    Bind(listenfd, (SA *) &servaddr, sizeof(servaddr));
-    
-    Listen(listenfd, LISTENQ);
-    
-    /* 把client数组的第一项用于监听套接字，并把其余各项描述符成员设置为-1。
-       将第一项的事件设置为POLLRNDORM，这样当有新的连接准备好被接收时poll将通知我们。
-      */
-    client[0].fd = listenfd;
-    client[0].events = POLLRDNORM;
-    for(i = 1; i < OPEN_MAX; i++)
-        client[i].fd = -1;  // -1 代表可用的空间
-    maxi = 0;  // 代表当前client有效描述符对应的最大索引位置
-    for(;;){
-        // 调用poll等待新的连接或者现有连接上有数据可读。
-        nready = Poll(client, maxi + 1, INFTIM);
-        // 一个新的连接被接收后，在client数组中查找到第一个描述符为负的可用项，将新连接的描述符保存到其中。
-        if(client[0].revents & POLLRDNORM){
-            clilen = sizeof(cliaddr);
-            connfd = accept(listenfd, (SA *) &cliaddr, &clilen);
-            
-            for(i = 1; i < OPEN_MAX; i++)
-                if(client[i].fd < 0){
-                    client[i].fd = connfd;
-                    break;
-                }
-            if(i == OPEN_MAX)
-                err_quit("too many clients");
-                
-            client[i].events = POLLRDNORM;
-            if(i > maxi)
-                maxi = i; // max index in client array
-                
-            if(--nready <= 0)
-                continue;
-        }
-        
-        for(i = 1; i <= maxi; i++){
-            if((sockfd = client[i].fd) < 0)
-                continue;
-            // 检查POLLRDNORM | POLLERR，我们并没有在events中设立第二个事件，但是它在条件成立时就会返回。
-            if(client[i].revents & (POLLRDNORM | POLLERR)){
-                if((n = read(socketfd, buf, MAXLINE)) < 0) {
-                     if(errno == ECONNRESET){
-                         Close(sockfd);
-                         client[i].fd = -1;
-                     } else 
-                         err_sys("read error");
-                 } else if(n == 0) {
-                     Close(sockfd);
-                     client[i].fd = -1;
-                 } else
-                     Writen(sockfd, buf, n);
-                 
-                 if(--nready <= 0)
-                     break;
-             }
-        }
-    }
-}
-```
-
-## epoll
-
-### epoll实现TCP回射服务器
-
-```c
-#include "unp.h"
-#include <sys/epoll.h>
-#include <limits.h>
-
-int main(int argc, char **argv) {
-    int i, listenfd, connfd, sockfd, epfd, nfds;
-    ssize_t n;
-    char buf[MAXLINE];
-    socklen_t clilen;
-    struct epoll_event ev, events[OPEN_MAX];
-    struct sockaddr_in cliaddr, servaddr;
-
-    listenfd = Socket(AF_INET, SOCK_STREAM, 0);
-
-    bzero(&servaddr, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(SERV_PORT);
-
-    Bind(listenfd, (SA *)&servaddr, sizeof(servaddr));
-
-    Listen(listenfd, LISTENQ);
-
-    epfd = epoll_create1(0);
-    if (epfd == -1)
-        err_sys("epoll_create1 error");
-
-    ev.events = EPOLLIN;
-    ev.data.fd = listenfd;
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, listenfd, &ev) == -1)
-        err_sys("epoll_ctl: listen_sock error");
-
-    for (;;) {
-        nfds = epoll_wait(epfd, events, OPEN_MAX, -1);
-        if (nfds == -1)
-            err_sys("epoll_wait error");
-
-        for (i = 0; i < nfds; i++) {
-            if (events[i].data.fd == listenfd) {  // 新连接
-                clilen = sizeof(cliaddr);
-                connfd = Accept(listenfd, (SA *)&cliaddr, &clilen);
-
-                ev.events = EPOLLIN | EPOLLET; // 使用边缘触发模式
-                ev.data.fd = connfd;
-                if (epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) == -1)
-                    err_sys("epoll_ctl: conn_sock error");
-            } else {  // 已有连接上有数据可读
-                sockfd = events[i].data.fd;
-                if ((n = read(sockfd, buf, MAXLINE)) < 0) {
-                    if (errno == ECONNRESET) {
-                        close(sockfd);
-                        if (epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL) == -1)
-                            err_sys("epoll_ctl: conn_sock error");
-                    } else
-                        err_sys("read error");
-                } else if (n == 0) {
-                    close(sockfd);
-                    if (epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL) == -1)
-                        err_sys("epoll_ctl: conn_sock error");
-                } else
-                    Writen(sockfd, buf, n);
-            }
-        }
-    }
-}
-```
-
-在使用 epoll 的边缘触发（EPOLLET）模式时，可能出现的一种潜在问题：
-
-* **场景设置**：
-  1. 我们有一个管道（pipe），它的读取端文件描述符 `rfd` 被注册到了 epoll 实例中，并且使用了边缘触发模式。
-  2. 管道的写入端写入 2KB 数据。
-  3. 调用 `epoll_wait`，`rfd` 被返回，表示有数据可读。
-  4. 从 `rfd` 中读取 1KB 数据。
-  5. 再次调用 `epoll_wait`。
-* **问题**：
-  * 在步骤 5 中，`epoll_wait` 可能会挂起（阻塞），即使输入缓冲区中还有剩余数据未读。
-  * 这是因为边缘触发模式下，epoll 只在文件描述符状态发生变化时才会产生事件。
-  * 在步骤 2 中，写入数据导致 `rfd` 状态变为可读，触发了一个事件，这个事件在步骤 3 中被 `epoll_wait` 消费。
-  * 虽然步骤 4 中只读取了部分数据，但 `rfd` 仍然处于可读状态，它的状态没有发生变化。
-  * 因此，在步骤 5 中，`epoll_wait` 不会再收到任何事件通知，从而导致挂起。
-* **影响**：
-  * 这种情况下，管道的另一端（写入端）可能正在等待读取端的响应，但读取端却因为 `epoll_wait` 挂起而无法及时处理数据，导致通信停滞。
-
-所以使用边缘触发模式时需要注意：
-
-* **及时处理事件**：当 epoll 通知文件描述符就绪时，应用程序需要尽可能地读取或写入数据，直到遇到 `EAGAIN` 错误，确保文件描述符的状态发生变化，以便下次能再次触发事件。
-* **非阻塞 I/O**：为了避免 `epoll_wait` 挂起，通常需要将文件描述符设置为非阻塞模式，这样在读取或写入数据时，如果操作无法立即完成，会返回 `EAGAIN` 错误，而不是阻塞等待。
-* **循环处理**：在边缘触发模式下，一次 `epoll_wait` 可能只会通知一部分就绪事件。因此，应用程序需要使用循环来处理所有就绪的文件描述符，直到没有更多的就绪事件为止。
-
-解决边缘出发模式的思想：
-
-* **使用非阻塞文件描述符**：这是使用 `EPOLLET` 的前提条件。
-* **仅在 `read` 或 `write` 返回 `EAGAIN` 后才等待事件**：这是 `EPOLLET` 的关键用法。
-
-**为什么要这样做？**
-
-* **避免事件丢失**：在 `EPOLLET` 模式下，如果一次 `epoll_wait` 返回后，您没有完全处理完文件描述符上的所有就绪事件（例如只读取了部分数据），那么后续的 `epoll_wait` 调用可能不会再通知您该文件描述符，即使还有数据可读或可写空间。
-* **提高效率**：通过在 `read` 或 `write` 返回 `EAGAIN` 后才等待事件，可以避免不必要的 `epoll_wait` 调用，从而提高程序的效率。
-
-```c
-// 假设 sockfd 是一个非阻塞套接字，已经注册到 epoll 实例中，使用 EPOLLET 模式
-int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
-
-for (int i = 0; i < nfds; i++) {
-    if (events[i].data.fd == sockfd) {
-        if (events[i].events & EPOLLIN) {
-            // 处理可读事件
-            while (1) {
-                ssize_t n = read(sockfd, buf, sizeof(buf));
-                if (n > 0) {
-                    // 处理读取到的数据
-                } else if (n == 0) {
-                    // 连接关闭
-                    close(sockfd);
-                    break;
-                } else {
-                    if (errno == EAGAIN) {
-                        // 没有更多数据可读，退出循环
-                        break;
-                    } else {
-                        // 处理错误
-                        perror("read");
-                        close(sockfd);
-                        break;
-                    }
-                }
-            }
-        } 
-        // ... 处理其他事件 ...
-    }
-}
-```
-
-## select vs poll vs epoll
-
-> 关于水平触发和边缘触发：
->
-> 水平触发（Level Triggered, LT）和边缘触发（Edge Triggered, ET）是 I/O 多路复用中两种不同的事件触发方式，它们决定了内核何时通知应用程序文件描述符已经就绪。
->
-> **水平触发（LT）**
->
-> * **特点**：只要文件描述符处于就绪状态，就会一直触发事件。
-> * **行为**：
->   * 当文件描述符变为可读或可写时，内核会通知应用程序。
->   * 如果应用程序没有立即处理该事件，并且文件描述符仍然保持就绪状态，内核会在下一次 `epoll_wait` 或 `poll` 调用时再次通知应用程序。
->   * 这种方式更安全，因为应用程序不会错过任何事件，但可能会导致频繁的通知，增加系统开销。
->
-> **边缘触发（ET）**
->
-> * **特点**：只有当文件描述符状态发生变化时才会触发事件。
-> * **行为**：
->   * 当文件描述符从不可读变为可读，或者从不可写变为可写时，内核会通知应用程序。
->   * 如果应用程序没有立即处理该事件，并且文件描述符仍然保持就绪状态，内核不会再次通知应用程序，直到文件描述符状态再次发生变化。
->   * 这种方式效率更高，因为避免了不必要的通知，但要求应用程序必须及时处理事件，否则可能会错过事件。
-
-| 特性            | select                | poll                  | epoll                |
-| ------------- | --------------------- | --------------------- | -------------------- |
-| **底层实现**      | 线性扫描                  | 线性扫描                  | 事件驱动                 |
-| **最大文件描述符限制** | 有限制，通常为 1024          | 没有硬性限制，但受限于系统资源       | 没有硬性限制，但受限于系统资源      |
-| **性能**        | 每次调用都需要遍历所有文件描述符，性能较差 | 每次调用都需要遍历所有文件描述符，性能较差 | 只处理活跃的连接，性能优秀        |
-| **数据拷贝**      | 每次调用都需要进行数据拷贝         | 每次调用都需要进行数据拷贝         | 只需一次从用户空间到内核空间的数据拷贝  |
-| **可移植性**      | 几乎所有 Unix/Linux 系统都支持 | 几乎所有 Unix/Linux 系统都支持 | 仅 Linux 系统支持         |
-| **触发模式**      | 仅支持水平触发（LT）           | 仅支持水平触发（LT）           | 支持水平触发（LT）和边缘触发（ET）  |
-| **使用场景**      | 适用于少量连接且活跃连接较多的场景     | 适用于少量连接且活跃连接较多的场景     | 适用于大量并发连接，且活跃连接较少的场景 |
-| **编程复杂度**     | 相对简单                  | 相对简单                  | 相对复杂                 |
-
-## 描述符就绪条件
-
-我们一直在讨论等待某个描述符准备好I/O或是等待其上发生一个待处理的异常条件。尽管可读性和可写性对于普通文件这样的描述符显而易见，然而对于引起套接字“就绪”的条件我们必须再详细讨论下：
-
-### 读就绪
-
-1. 该套接字接收缓冲区中的数据字节数大于等于套接字接收缓冲区低水位标记的大小。对这样的套接字执行读的操作不会阻塞并将返回一个大于0的值（也就是返回准备好读入的数据）。我们可以使用SO\_RCVLOWAT套接字选项设置改套接字低水位标记。
-2. 该连接的读半部关闭（也就是接收了FIN的连接）。对这样的套接字的读操作将不阻塞并返回0（也就是EOF）。
-3. 该套接字是一个监听套接字且已完成的连接数大于0。对这样的套接字的accept通常不会阻塞。
-4. 其上有一个套接字错误待处理，对这样的套接字的读操作将不阻塞并返回-1（也就是返回-1），同时把errno设置为确切的错误条件。
-
-### 写就绪
-
-1. 该套接字的发送缓冲区的可用空间字节数大于等于套接字发送缓冲区低水位标记的当前大小，并且或者该套接字已连接，或者该套接字不需要连接（如UDP套接字）。这意味着如果我们把这样的套接字设置为非阻塞，写操作将不阻塞并返回一个正值（例如由传输层接受的字节数）。我们可以使用SO\_SNDLOWAT套接字选项来设置该套接字的低水位标记。对于TCP和UDP套接字而言，其默认值是2048。
-2. 该连接的写半部关闭。对这样的套接字的写操作将产生SIGPIPE信号。
-3. 使用非阻塞connect的套接字已建立连接，或者connect以失败而告终。
-4. 其上有一个套接字错误待处理。对这样的套接字的写操作将不阻塞并返回-1，同时把errno设置为确切的错误条件。
-
-### 带外标记
-
-如果一个套接字存在带外数据（带外数据指的是一个连接的某端发生了重要的事情，而且希望迅速通告其对端。这里“迅速”意味着这种通知应该在已经排队等待发送的任何“普通”数据之前发送。也就是说：带外数据被认为比普通数据具有更高的优先级），那么它有异常待处理。
-
-## 软件怎么实现的监测数据的到来
-
-### 中心思想
-
-无论是select poll epoll，都避免不了在程序层面通过主（死）循环监测数据，但是使用这些手段可以减少CPU资源的浪费。
-
-**为什么服务器程序需要循环：**
-
-* **持续运行：** 服务器程序通常需要长时间运行，以提供持续的服务。循环可以保证程序不会在处理完一个请求后就退出。
-* **事件驱动：** 即使在异步IO模型中，服务器程序也需要一个循环来驱动事件的处理。事件循环不断地从事件队列中获取事件，并调用相应的回调函数来处理事件。
-
-服务器程序通常需要一个主循环来驱动程序的运行，这个循环可以是事件循环、定时器循环或者信号处理循环。虽然循环会占用一定的CPU资源，但通过使用异步IO、多路复用、硬件加速等技术，可以大大减少CPU的消耗，提高服务器程序的性能和可伸缩性。
-
-## 硬件是怎么实现的监测数据的到来
-
-硬件电路可以通过时钟信号、状态机等机制来实现连续的信号检测，而不需要显式的循环。这是因为硬件电路是并行执行的，可以在一个时钟周期内完成多个操作。
-
-> 其实在硬件层面，可以把接收器加电的状态类比为for循环，加电的状态是持续的，逻辑电路可以类比为for循环内部的处理逻辑。
-
-## 关于使用主循环的一些弊端
-
-* **效率低下：** 如果使用 for 循环来等待信号，处理器会一直处于忙等待状态，浪费大量的 CPU 资源。
-* **实时性差：** for 循环内部的某段程序执行时间是不确定的，可能会导致信号接收的延迟，影响系统的实时性。
-
-但是应用服务器离不开主（死）循环。
-
-## 猜测：IO模型中，一定有...
-
-<figure><img src=".gitbook/assets/image (2).png" alt=""><figcaption></figcaption></figure>
-
-所以能够提升效率的地方在哪儿呢？
-
-1、硬件层面：逻辑电路应该把接收到的数据放在一个应用进程（我们自己编写的服务器）触手可及的地方。也就是内核和用户共享的内存区。放在这里可以使应用进程在获取数据的时候不用进行用户-内核态的转换。
-
-2、软件层面：在没有数据处理的时候，尽量少占CPU资源，进程投入睡眠。
+| I/O 模型        | 等待数据阶段的进程状态               | 内核到用户空间复制阶段的进程状态 | 系统调用次数  | 系统调用举例                                                                                                                                                                                                                                                                  | 典型用例                           | 特点/总结                                                                                                                                  |
+| ------------- | ------------------------- | ---------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 阻塞 I/O (BIO)  | 阻塞                        | 阻塞               | 1       | <ol><li><code>socket()</code> -> <code>bind()</code> -> <code>listen()</code> -> <code>accept()</code></li><li><code>recv()</code> </li><li><code>read()</code></li></ol>                                                                                               | 简单、低并发场景                       | <p>优点: 编程模型最简单。<br>缺点: 并发能力极差，一个线程只能处理一个连接，线程会被长时间挂起，造成巨大资源浪费。</p>                                                                     |
+| 非阻塞 I/O (NIO) | 非阻塞 (需轮询)                 | 阻塞               | 多次 (轮询) | <ol><li><code>fcntl(fd, F_SETFL, O_NONBLOCK)</code>: 将套接字设置为非阻塞。</li><li> 在循环中反复调用 <code>recv()</code> 或 <code>read()</code>。(在数据就绪前，<code>recv</code>会立即返回-1，并设置errno为<code>EAGAIN</code>或<code>EWOULDBLOCK</code>)</li></ol>                                          | 需要在等待 I/O 时执行其他任务的场景           | <p>优点: 线程不会被阻塞挂起。<br>缺点: 循环轮询会大量消耗CPU资源（忙等待 Busy-waiting），效率低下。</p>                                                                    |
+| I/O 多路复用      | 阻塞 (在 `select`/`epoll` 上) | 阻塞               | 2+      | <p><code>select()</code> / <code>poll()</code> / <code>epoll_wait()</code> + <code>recv()</code></p><p>1. 调用 <code>epoll_wait()</code> (或<code>select</code>/<code>poll</code>) 阻塞等待，直到有连接就绪。</p><p>2. 当<code>epoll_wait</code>返回后，调用 <code>recv()</code> 读取已就绪的数据。</p> | Nginx, Node.js, Redis (高并发服务器) | <p>优点: 高并发核心。用一个线程就可以管理成千上万个连接，系统开销小。</p><p>缺点: 编程模型比阻塞IO复杂。</p><p><em>(Nginx, Redis, Node.js等都基于此模型)</em></p>                         |
+| 异步 I/O (AIO)  | 非阻塞                       | 非阻塞              | 1       | <p><code>aio_read()</code> (POSIX AIO)</p><p>1. 调用 <code>aio_read()</code> 发起异步读请求，立即返回。</p><p>2. 内核完成所有工作后，通过信号或回调通知应用进程。</p><p><em>(Linux下更高效的现代实现是 <code>io_uring</code> 接口)</em></p>                                                                                | 高性能文件/网络操作 (Windows IOCP)      | <p>优点: 真正的异步。应用进程在整个I/O过程中完全不被阻塞，包括数据复制阶段。</p><p>缺点: 编程模型最复杂。Linux历史上对网络套接字的AIO支持不完善，但<code>io_uring</code>正在改变这一现状，成为未来高性能I/O的方向。</p> |
 

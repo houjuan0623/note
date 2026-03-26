@@ -1,6 +1,6 @@
 # 🐶 libuv 线程池的实现
 
-**好好借鉴，往后可以自己实现一个对应的线程池。**
+[源码位置](https://github.com/houjuan0623/libuv-debug/blob/main/src/threadpool.c)
 
 ## 实现一个线程池需要注意的事项
 

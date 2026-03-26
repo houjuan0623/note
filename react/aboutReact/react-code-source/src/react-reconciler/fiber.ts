@@ -26,14 +26,40 @@ export class FiberNode {
   return: FiberNode | null;
   sibling: FiberNode | null;
   child: FiberNode | null;
+  /** 当有多个element元素同级的时候，同级元素经过jsx的处理会被处理成为数组。index记录本fiber对应的element在数组中的位置，从0开始 */
   index: number;
 
   memoizedProps: Props | null;
   /** memoizedState 记录当前fiber对应的hook链表。`currentlyRenderingFiber.memoizedState = workInProgressHook;` */
   memoizedState: any;
+  /**
+   * 在渲染过程中，React 同时维护两棵 Fiber 树：<br />
+   * - current 树: 代表当前屏幕上已经渲染完成的 UI 对应的 Fiber 树。它是“旧树”。为什么说 current 树是已经渲染完成的树？
+   *     - 我一直好奇，当current树中仅仅存在hostRootFiber时，界面并没有被渲染啊，然后一直遇到这种说辞“current 树是已经渲染完成的树”，现在理解了，因为current树中仅仅存在hostRootFiber时current树中并没有可渲染的元素。
+   *     - 当节点为其他节点的时候，应该可以在current树中看到被渲染的树节点了（待验证）
+   * - workInProgress (wip) 树: React 正在这棵树上进行计算和更新，它代表了即将要渲染到屏幕上的新 UI。它是“新树”或“工作副本”。为什么说 wip 树是正在渲染的树？因为和 wip 被构建完成后一次性提交，只要是在wip树构建过程中，就说明这个节点尚未被浏览器渲染，因为这里的构建是react代码实现的，并未交给浏览器去渲染。
+   * 
+   * 每个 wip 树中的 Fiber 节点（如果它不是首次创建的话）会通过 alternate 属性指向 current 树中对应的那个旧节点。反之，current 树中的节点也通过 alternate 指向 wip 树中的对应节点。它们互为 alternate。
+   */
   alternate: FiberNode | null;
   flags: Flags;
   subtreeFlags: Flags;
+  /**
+   * 可以把 updateQueue 想象成一个附加在特定类型 Fiber 节点（主要是 HostRoot、类组件，以及使用 Hooks 的函数组件隐式关联的队列）上的**“收件箱”或“邮箱”。它的主要工作是存放那些已经被请求、但尚未被处理的针对该组件的更改（更新）列表。 <br />
+   * 这些“更新”可以是：
+   * - 状态变更，调用 useState(...) 返回的 setter 函数时；
+   * - 根元素变更，调用 root.render(<NewElement />) 
+   * - 强制更新，在类组件上调用 this.forceUpdate() 。
+   * - 回调函数，更新也可以包含回调函数（比如 this.setState(newState, callback) 中的可选第二个参数）
+   * 
+   * 为什么需要 updateQueue？目的何在？<br />
+   * 
+   * React 并不会在调用 setState 或 root.render 的那一刻就立即应用更改并重新渲染。如果这样做效率会非常低，特别是当多个更新在短时间内连续发生时（例如在同一个按钮点击事件处理器中）。因此，React 采用了调度（Scheduling）和批处理（Batching）机制：
+   * 
+   * - 批处理更新：React 通常会将发生在相近时间点（如同一事件处理函数内）的多个更新组合成一个“批次”。updateQueue 允许 React 收集所有这些请求的更改，而无需每次请求都立即触发重新渲染。
+   * - 调度与并发：在并发模式下，React 会给更新分配优先级（lanes）。updateQueue 会将这些更新连同它们的优先级一起保存。当 React 决定执行渲染时，它可以查看队列，并只处理那些优先级与当前渲染优先级匹配的更新，可能会推迟处理低优先级的更新。这使得高优先级的任务（如响应用户输入）可以打断并优先于低优先级的任务（如渲染网络请求返回的数据）。
+   * - 
+   */ 
   updateQueue: unknown;
   deletions: FiberNode[] | null;
 
@@ -81,6 +107,7 @@ export class FiberRootNode {
   container: Container;
   /** 之所以我将fiberRootNode称为特殊的finerNode就是因为在这里fiberRootNode使用current来引用属于自身的fiberNode */
   current: FiberNode;
+  /** 走完递+归的流程之后，会将此时建立的fiber树处于finished状态，故命名为finishedWork */
   finishedWork: FiberNode | null;
   /**
    * 待处理的优先级集合。pendingLanes (复数形式) 通常是一个位掩码 (bitmask)，代表了当前所有已调度但尚未完成的更新任务所对应的优先级集合。

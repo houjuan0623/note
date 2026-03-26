@@ -5,12 +5,7 @@
 * [🌲 译文：从源码中学习（阅读源码，初学者的有效成长方式）](README.md)
 * [👮 一些关于RC的具体的阅读计划](learn-from-source-code/yi-xie-guan-yu-rc-de-ju-ti-de-yue-du-ji-hua.md)
 * [👨‍💻 记录阅读源码遇到的问题](learn-from-source-code/ji-lu-yue-du-yuan-ma-yu-dao-de-wen-ti.md)
-* [网络并发](learn-from-source-code/wang-luo-bing-fa.md)
-* [程序并发](learn-from-source-code/cheng-xu-bing-fa.md)
-* [数据库并发](learn-from-source-code/shu-ju-ku-bing-fa.md)
-* [长连接高并发](learn-from-source-code/chang-lian-jie-gao-bing-fa.md)
 * [🩸 promise vs 纤程](learn-from-source-code/promise-vs-xian-cheng.md)
-* [🩸 nodejs vs java](<README (1).md>)
 * [🩸 promise vs go(go处理并发的那个数据结构)](learn-from-source-code/promise-vs-gogo-chu-li-bing-fa-de-na-ge-shu-ju-jie-gou.md)
 * [🩸 数据库的增删改查问题](learn-from-source-code/shu-ju-ku-de-zeng-shan-gai-cha-wen-ti.md)
 * [🩸 阅读一篇文章，生成自己的文章](learn-from-source-code/yue-du-yi-pian-wen-zhang-sheng-cheng-zi-ji-de-wen-zhang.md)
@@ -44,6 +39,7 @@
 * [Rocketchat 怎样实现CI/CD的？](rocketchat/rocketchat-zen-yang-shi-xian-cicd-de.md)
 * [Rocketchat 长连接通信](rocketchat/rocketchat-chang-lian-jie-tong-xin.md)
 * [为了满足DDP协议，Rocketchat server端设计了一个什么样的数据结构？](rocketchat/wei-le-man-zu-ddp-xie-yi-rocketchat-server-duan-she-ji-le-yi-ge-shen-me-yang-de-shu-ju-jie-gou.md)
+* [nginx 配置](rocketchat/nginx-pei-zhi.md)
 
 ## Rocketchat 仿开过程中的一些问题
 
@@ -75,7 +71,46 @@
 
 * [关于完整性约束和性能优化的误区](shu-ju-ku/guan-yu-wan-zheng-xing-yue-shu-he-xing-neng-you-hua-de-wu-qu.md)
 * [数据库分析设计](shu-ju-ku/shu-ju-ku-fen-xi-she-ji.md)
+* [反三范式](shu-ju-ku/fan-san-fan-shi.md)
 
 ## kafka
 
 * [kafka 简介](kafka/kafka-jian-jie.md)
+
+## 软件工程
+
+* [需求文档编写](ruan-jian-gong-cheng/xu-qiu-wen-dang-bian-xie.md)
+* [总体设计文档编写](ruan-jian-gong-cheng/zong-ti-she-ji-wen-dang-bian-xie/README.md)
+  * [Mysql 阿里云云盘性能分析](ruan-jian-gong-cheng/zong-ti-she-ji-wen-dang-bian-xie/mysql-ali-yun-yun-pan-xing-neng-fen-xi.md)
+  * [Mysql语句分析](ruan-jian-gong-cheng/zong-ti-she-ji-wen-dang-bian-xie/mysql-yu-ju-fen-xi.md)
+* [测试需要思考的问题](ruan-jian-gong-cheng/ce-shi-xu-yao-si-kao-de-wen-ti.md)
+
+## 并发
+
+* [怎样考虑并发冲突的问题？](bing-fa-1/zen-yang-kaolbing-fa-chong-tu-de-wen-ti.md)
+* [网络并发](bing-fa-1/wang-luo-bing-fa.md)
+* [程序并发](bing-fa-1/cheng-xu-bing-fa.md)
+* [数据库并发](bing-fa-1/shu-ju-ku-bing-fa.md)
+* [长连接高并发](bing-fa-1/chang-lian-jie-gao-bing-fa.md)
+* [消息队列并发](bing-fa-1/xiao-xi-dui-lie-bing-fa.md)
+* [架构并发](bing-fa-1/jia-gou-bing-fa.md)
+* [redis并发](bing-fa-1/redis-bing-fa.md)
+
+## 语言的对比
+
+* [🩸 nodejs vs java](yu-yan-de-dui-bi/nodejs-vs-java.md)
+* [V8垃圾回收 vs JVM 垃圾回收](yu-yan-de-dui-bi/v8-la-ji-hui-shou-vs-jvm-la-ji-hui-shou.md)
+* [🍪 nodejs的调优](yu-yan-de-dui-bi/nodejs-de-tiao-you.md)
+* [🍪 Java的调优](yu-yan-de-dui-bi/java-de-tiao-you.md)
+* [Nodejs调优](yu-yan-de-dui-bi/nodejs-tiao-you.md)
+* [Nodejs-backend监测](yu-yan-de-dui-bi/nodejsbackend-jian-ce.md)
+* [Nodejs-frontend监测](yu-yan-de-dui-bi/nodejsfrontend-jian-ce/README.md)
+  * [记录一次性能调优过程](yu-yan-de-dui-bi/nodejsfrontend-jian-ce/ji-lu-yi-ci-xing-neng-tiao-you-guo-cheng.md)
+* [Java调优](yu-yan-de-dui-bi/java-tiao-you.md)
+* [Java监测](yu-yan-de-dui-bi/java-jian-ce.md)
+* [部署架构](yu-yan-de-dui-bi/bu-shu-jia-gou/README.md)
+  * [为什么内存不够用，运行速度会变慢？](yu-yan-de-dui-bi/bu-shu-jia-gou/wei-shen-me-nei-cun-bu-gou-yong-yun-xing-su-du-hui-bian-man.md)
+
+***
+
+* [Mysql和MongoDB优化](mysql-he-mongodb-you-hua.md)
