@@ -13,7 +13,7 @@ import { HostRoot } from "./workTags";
 
 /**
  * 创建fiberRootNode，fiberRootNode是所有fiberNode的根节点。
- * @param container 一个document（html元素）数据结构
+ * @param container 一个document（DOM）数据结构
  * @returns fiberRootNode
  *
  */
@@ -26,15 +26,16 @@ export function createContainer(container: Container) {
 
 export function updateContainer(
   element: ReactElementType | null,
-  root: FiberRootNode
+  root: FiberRootNode,
 ) {
   const hostRootFiber = root.current;
   // 渲染优先级
   const lane = requestUpdateLane();
+  // update 对象是接下来要更新的对象
   const update = createUpdate<ReactElementType | null>(element, lane);
   enqueueUpdate(
     hostRootFiber.updateQueue as UpdateQueue<ReactElementType | null>,
-    update
+    update,
   );
   scheduleUpdateOnFiber(hostRootFiber, lane);
   return element;
