@@ -7,6 +7,7 @@
   * [fiber和element之间的关系](shen-me-shi-fiber-dui-xiang/fiber-he-element-zhi-jian-de-guan-xi.md)
   * [列举一些DOM昂贵的操作](shen-me-shi-fiber-dui-xiang/lie-ju-yi-xie-dom-ang-gui-de-cao-zuo.md)
   * [FiberRootNode和FiberNode之间的关系](shen-me-shi-fiber-dui-xiang/fiberrootnode-he-fibernode-zhi-jian-de-guan-xi.md)
+  * [什么时候会创建一颗Fiber树？](shen-me-shi-fiber-dui-xiang/shen-me-shi-hou-hui-chuang-jian-yi-ke-fiber-shu.md)
 * [什么是FiberRootNode？](shen-me-shi-fiberrootnode.md)
 * [什么是react render，commit？](shen-me-shi-react-rendercommit.md)
 * [tree shaking](page.md)
