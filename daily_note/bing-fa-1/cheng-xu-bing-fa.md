@@ -85,6 +85,33 @@ function shouldYieldToHost() {
 
 由于5ms的限制，会产生一个任务执行完5ms以后并未执行完毕的情况，这个时候`workLoop` 返回 `true` ，`flushWork` 的 `finally` 块会调用 `schedulePerformWorkUntilDeadline()`。这个函数利用 `MessageChannel` (或其他异步机制) 的 `postMessage` 将一个**新的宏任务**放入事件循环队列。这个新任务就是去执行 `performWorkUntilDeadline`，而 `performWorkUntilDeadline` 的核心工作就是再次调用 `flushWork`。总之会利用浏览器的事件循环机制，将一个新的事件压入事件循环队列中。这样一来执行权就交给浏览器了。
 
+#### taskQueue中的任务是什么？
+
+在 `scheduler` 源码中，一个 `Task` 指的是**一次完整的更新动作**。 比如，你点击按钮触发了一次 `setState`，React 就会向 Scheduler 注册一个宏观任务。这个任务的回调函数通常是 `performConcurrentWorkOnRoot`
+
+```typescript
+scheduleCallback(
+      schedulerPriority,
+      // @ts-ignore
+      performConcurrentWorkOnRoot.bind(null, root),
+    );
+```
+
+通过`performConcurrentWorkOnRoot`最终会调用`performUnitOfWork`。
+
+```typescript
+function workLoopConcurrent() {
+  // 只要还有没处理完的 Fiber 节点，并且浏览器还有空闲时间，就继续做
+  while (workInProgress !== null && !shouldYieldToHost()) {
+    performUnitOfWork(workInProgress);
+  }
+}
+```
+
+`performUnitOfWork`至少会处理一个Fiber节点。在 React 的并发架构中，**最小的、不可被打断的工作单元（Unit of Work）就是一个 `FiberNode` 的处理过程。可以打断的是Fiber树的构建过程。**
+
+React 只有在 `while` 循环的条件判断处，通过调用 `unstable_shouldYield()` 才会去检查“时间切片是否用完”或者“是否有更高优先级的任务”。一旦检查通过，进入了循环体，调用了 `performUnitOfWork(workInProgress)`，那么针对当前这个 `FiberNode` 的所有操作（包括执行组件函数、计算 Diff、打上 flags 标记等）就会**同步执行到底**，在这期间是没有任何机制能让其暂停的。
+
 ### 死锁和活锁问题
 
 当我们仅仅将注意力集中在[react.development.js](../../react/aboutReact/react-code-source/src/%E5%B9%B6%E5%8F%91demo/react.development.js)的时候，它本身的设计几乎不可能产生经典意义上的死锁和活锁现象。
