@@ -163,3 +163,253 @@ return fiber;
 ```
 
 如果 `while` 循环完了，把所有旧节点都删了一遍也没找到能复用的；或者因为 `type` 不同提前 `break` 了，代码就会走到最后——根据新的 React 元素，老老实实地调用 `createFiberFromElement` 创建一个全新的 Fiber 节点。
+
+### reconliceChildrenArray 中 Diff 的应用
+
+```typescript
+function reconcileChildrenArray(
+    returnFiber: FiberNode,
+    currentFirstChild: FiberNode | null,
+    newChild: any[],
+  ) {
+    // 当前已经处理过的、且不需要移动的复用节点中，在老树里最靠右的位置（最大索引）。
+    let lastPlacedIndex = 0;
+    // 创建的最后一个fiber
+    let lastNewFiber: FiberNode | null = null;
+    // 创建的第一个fiber
+    let firstNewFiber: FiberNode | null = null;
+
+    // 1.将current保存在map中
+    const existingChildren: ExistingChildren = new Map();
+    let current = currentFirstChild;
+    while (current !== null) {
+      const keyToUse = current.key !== null ? current.key : current.index;
+      existingChildren.set(keyToUse, current);
+      current = current.sibling;
+    }
+
+    for (let i = 0; i < newChild.length; i++) {
+      // 2.遍历newChild，寻找是否可复用
+      const after = newChild[i];
+
+      const newFiber = updateFromMap(returnFiber, existingChildren, i, after);
+
+      if (newFiber === null) {
+        continue;
+      }
+
+      // 3. 标记移动还是插入
+      newFiber.index = i;
+      newFiber.return = returnFiber;
+
+      if (lastNewFiber === null) {
+        lastNewFiber = newFiber;
+        firstNewFiber = newFiber;
+      } else {
+        lastNewFiber.sibling = newFiber;
+        lastNewFiber = lastNewFiber.sibling;
+      }
+
+      if (!shouldTrackEffects) {
+        continue;
+      }
+
+      const current = newFiber.alternate;
+      if (current !== null) {
+        const oldIndex = current.index;
+        if (oldIndex < lastPlacedIndex) {
+          // 移动
+          newFiber.flags |= Placement;
+          continue;
+        } else {
+          // 不移动
+          lastPlacedIndex = oldIndex;
+        }
+      } else {
+        // mount
+        newFiber.flags |= Placement;
+      }
+    }
+    // 4. 将Map中剩下的标记为删除
+    existingChildren.forEach((fiber) => {
+      deleteChild(returnFiber, fiber);
+    });
+    return firstNewFiber;
+  }
+```
+
+当在 React 中渲染一个数组（比如 `<ul>` 下面有一堆 `<li>`），React 就会调用这个函数。它的根本目标是：**接收一个旧的 Fiber 节点链表和一个新的 React Element 数组，通过最高效的复用策略，生成一个新的 Fiber 节点链表，并为需要增删改移的节点打上副作用标记（Flags）。**
+
+**首先认识三个变量：**
+
+```typescript
+let lastPlacedIndex = 0; // 极其重要：记录最后一个【不需要移动】的可复用节点，在老树中的索引（位置）
+let lastNewFiber: FiberNode | null = null; // 用于将新节点串联成链表（指向链表尾部）
+let firstNewFiber: FiberNode | null = null; // 用于返回，指向新链表的头部
+```
+
+#### 第一步：将老节点存入 Map 缓存
+
+```typescript
+const existingChildren: ExistingChildren = new Map();
+let current = currentFirstChild;
+while (current !== null) {
+  const keyToUse = current.key !== null ? current.key : current.index;
+  existingChildren.set(keyToUse, current);
+  current = current.sibling;
+}
+```
+
+**这一步在干嘛？** 因为老节点（`currentFirstChild`）是一个单向链表，想在单向链表里找某个特定的节点（比如找 `key="A"` 的节点）是非常慢的（时间复杂度 $O(n)$）。 为了加快后续比对的速度，React 遍历了一遍老节点链表，把它们全部存进了一个 `Map` 里。
+
+* **找人的凭证（Key）**：如果有开发者传的 `key` 就用 `key`；如果没有，就只能无奈地用它在兄弟里的排行 `index`。
+
+#### 第二步：遍历新数组，寻找可复用的老节点
+
+```typescript
+for (let i = 0; i < newChild.length; i++) {
+  const after = newChild[i];
+  const newFiber = updateFromMap(returnFiber, existingChildren, i, after);
+  // ...
+```
+
+接下来，React 开始遍历我们这次要渲染的新数组（`newChild`）。 对于每一个新元素，它会调用 `updateFromMap` 函数去刚刚建好的花名册（Map）里“捞人”。
+
+**`updateFromMap` 内部逻辑：**
+
+1. 根据新元素的 `key` 或 `index` 去 Map 里找老节点。
+2. **如果找到了，并且类型（type）一样**：太好了！调用 `useFiber` 克隆并复用这个老节点，同时**把它从 Map 中删掉**（这代表这个老节点已经被认领了）。
+3. **如果没找到，或者类型变了**：老老实实调用 `createFiberFromElement` 创建一个全新的 Fiber 节点。
+
+#### 第三步：将新节点串成链表，并判断是否需要“移动”（最烧脑的部分）
+
+拿到 `newFiber` 后，首先用 `firstNewFiber` 和 `lastNewFiber` 把它们通过 `.sibling` 指针连成一串单向链表。
+
+紧接着，是最核心的 **DOM 移动判断逻辑**：
+
+```typescript
+const current = newFiber.alternate;
+if (current !== null) {
+  const oldIndex = current.index;
+  if (oldIndex < lastPlacedIndex) {
+    // 移动
+    newFiber.flags |= Placement;
+    continue;
+  } else {
+    // 不移动
+    lastPlacedIndex = oldIndex;
+  }
+} else {
+  // mount
+  newFiber.flags |= Placement;
+}
+```
+
+**如果这是一个全新创建的节点 (`current === null`)：** 很好理解，新来的，当然要打上 `Placement`（插入）标记。
+
+**如果这是一个复用的老节点 (`current !== null`)：** React 需要判断它在真实的 DOM 里需不需要被移动。这里巧妙地使用了 `lastPlacedIndex` 这个游标。 **`lastPlacedIndex` 的物理意义是：当前已经处理过的、且不需要移动的复用节点中，在老树里最靠右的位置（最大索引）。**
+
+👉 **举个例子来理解这个神仙逻辑：** 假设老树是 `A(0), B(1), C(2)`，新树变成了 `C, A, B`。
+
+1. **遍历到新节点 `C`**：
+   * 在 Map 中复用老节点 `C`，它的 `oldIndex` 是 `2`。
+   * 此时 `lastPlacedIndex` 是初始值 `0`。
+   * `2 < 0` 不成立。说明 `C` 节点的位置在 `lastPlacedIndex` 的右边，不需要移动它（就把它当做锚点固定在这里）。
+   * 更新 `lastPlacedIndex = 2`。
+2. **遍历到新节点 `A`**：
+   * 在 Map 中复用老节点 `A`，它的 `oldIndex` 是 `0`。
+   * 此时 `lastPlacedIndex` 已经是 `2` 了。
+   * `0 < 2` 成立！这说明在老树里，`A` 明明排在 `C` 的左边，但现在我们正在渲染的 `C` 后面，所以 `A` 必须被往右边移动！
+   * 给 `A` 打上 `Placement` 标记。`lastPlacedIndex` 保持 `2` 不变。
+3. **遍历到新节点 `B`**：
+   * 复用老节点 `B`，`oldIndex` 是 `1`。
+   * `1 < 2` 成立！同理，`B` 原本也在 `C` 的左边，现在跑到 `C` 后面去了，必须移动！
+   * 给 `B` 打上 `Placement` 标记。
+
+最终结果：`C` 不动，`A` 和 `B` 被标记为插入（移动）到 `C` 的后面。完美实现了以最小的操作代价更新 DOM！
+
+> `lastPlacedIndex` 本身就是为了标记一个锚点。看完下面一个问题就能理解了。
+>
+> Q：即使发现了可复用地老节点，应该怎么确定A和B分别插入到哪儿呢？因为placement只能代表插入啊。并没有说插入到哪儿。
+>
+> A：在 Render 阶段打上的 `Placement` 标记，仅仅是一个布尔性质的 Flag，它只表达了 **“我需要被插入或移动”**，但**绝对没有**在这个标记里存储“我要插到第几个位置”或者“我要插到谁前面”。
+>
+> 解决方案隐藏在下面的步骤中：
+>
+> 在**下一阶段（Commit 阶段）的代码中。React 会利用已经构建好的新 Fiber 树的拓扑结构**，通过一个叫 **`getHostSibling`** 的核心函数，动态去寻找插入的“锚点（Anchor）”。
+>
+> **1. 寻找真实 DOM 的“兄弟锚点”：`getHostSibling`**
+>
+> 当 Commit 阶段处理到带有 `Placement` 标记的节点时，会调用 `commitPlacement` 函数。这个函数会去寻找两个东西：
+>
+> 1. **`hostParent`**：我要插到哪个父节点下面？
+> 2. **`sibling`**：我要插到哪个兄弟节点的前面？
+>
+> 找兄弟节点用的是 `getHostSibling`。它的核心逻辑非常聪明：**顺着新 Fiber 树的 `sibling` 指针往后找，直到找到一个“稳定”的真实 DOM 节点为止。**
+>
+> 看看 `getHostSibling` 里这段极其关键的判断：
+>
+> ```typescript
+> while (node.tag !== HostText && node.tag !== HostComponent) {
+>     // 【核心秘籍】：如果后面这个兄弟节点自己也带了 Placement 标记，
+>     // 说明它自己也是个泥菩萨过江，还没稳定下来，不能拿它当锚点！跳过它！
+>     if ((node.flags & Placement) !== NoFlags) {
+>         continue findSibling;
+>     }
+>     // ...
+> }
+>
+> // 找到了一个既是真实 DOM，又没有 Placement 标记的稳定节点！
+> if ((node.flags & Placement) === NoFlags) {
+>     return node.stateNode; 
+> }
+> ```
+>
+> **什么是“稳定”的节点？** <mark style="color:blue;">就是那些在 Diff 算法中没有被打上</mark> <mark style="color:blue;"></mark><mark style="color:blue;">`Placement`</mark> <mark style="color:blue;"></mark><mark style="color:blue;">标记、位置不需要变动的老节点。</mark>
+>
+> **2. 决定调用 `insertBefore` 还是 `appendChild`**
+>
+> 拿到这个稳定的 `sibling` 锚点之后，在 `insertOrAppendPlacementNodeIntoContainer` 函数中，React 会做如下抉择：
+>
+> ```typescript
+> if (before) {
+>     // 如果找到了稳定的兄弟节点，就插到它前面！
+>     insertChildToContainer(finishedWork.stateNode, hostParent, before);
+> } else {
+>     // 如果一直往后找，直到最后都没找到稳定的兄弟节点，
+>     // 说明我自己就是最后面的了，直接追加到父级末尾！
+>     appendChildToContainer(hostParent, finishedWork.stateNode);
+> }
+> ```
+>
+> 💡 举个绝佳的例子来推演一遍
+>
+> 假设老树是 `[A, B, C, D]`，我们更新后变成了 `[A, C, B, D]`。 在 Render 阶段的 `reconcileChildrenArray` 中，打标记的情况如下：
+>
+> * **A**: 没变，不动。
+> * **C**: 没变，不动 (`lastPlacedIndex` 更新为 C 的老索引 2)。
+> * **B**: 老索引 1 < 2，**被打上 `Placement` 标记！**
+> * **D**: 没变，不动 (`lastPlacedIndex` 更新为 D 的老索引 3)。
+>
+> 现在进入 Commit 阶段，React 发现了 **B** 身上有 `Placement` 标记，准备移动它的真实 DOM：
+>
+> 1. React 调用 `getHostSibling(B)`，顺着新 Fiber 树去找 B 的下一个兄弟。
+> 2. B 的新兄弟是 **D**。
+> 3. React 检查 D：D 是原生节点，而且 **D 身上没有 `Placement` 标记**！太好了，D 是一个稳如泰山的老同志！
+> 4. `getHostSibling` 成功返回 D 的真实 DOM 节点作为 `before` 锚点。
+> 5. React 执行 DOM 操作：`hostParent.insertBefore(B的DOM, D的DOM)`。
+>
+> 原先屏幕上的 DOM 是 A, B, C, D。 执行完 `insertBefore` 后，B 被从原来的位置拔出来，插到了 D 的前面。 屏幕上的 DOM 瞬间变成了 **A, C, B, D**。
+
+#### 第四步：清理垃圾（销毁多余的老节点）
+
+```typescript
+existingChildren.forEach((fiber) => {
+  deleteChild(returnFiber, fiber);
+});
+return firstNewFiber;
+```
+
+当新数组遍历完后，如果 Map（`existingChildren`）里还有剩余的节点，说明什么？ 说明这些老节点在新数组里没有找到归宿，它们被抛弃了！ 所以，直接遍历 Map，把里面剩下的孤魂野鬼全部打上 `ChildDeletion` 标记，让渲染器在 Commit 阶段把它们从真实 DOM 中拔除。
+
+最后，返回串联好的新 Fiber 链表头部 `firstNewFiber`，这一层的多节点 Diff 就大功告成了。

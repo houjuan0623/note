@@ -1,5 +1,11 @@
 # key的实践
 
+## Key在源码中的位置
+
+In [reconcileSingleElement](./#reconcilesingleelement-zhong-diff-de-ying-yong)。
+
+In [reconcileChildrenArray](./#reconlicechildrenarray-zhong-diff-de-ying-yong)。
+
 ## 每次渲染时“动态生成” Key（bad）
 
 很多新手会为了“消除警告”或“追求唯一”，写出这样的代码
