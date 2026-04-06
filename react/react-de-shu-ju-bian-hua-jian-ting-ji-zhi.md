@@ -2,41 +2,32 @@
 
 > React的核心机制**从来没有**直接使用`Object.defineProperty`的`get`/`set`拦截器或者`Proxy`/`Reflect`来实现对数据变化的监听和响应。
 
-## 更新的源头
+## 数据变化监听源
 
-在React应用中，驱动UI更新的**根本源头**通常是以下两者之一：
+setState和useContext
 
-* **状态 (State) 的改变**: 组件内部通过调用 `setState` 或 `useState` 返回的更新函数来修改自身状态。
-* **属性 (Props) 的改变**: 父组件重新渲染，并传递了新的属性（值不同或引用不同）给子组件。
+## setState变化的流程
 
-## 变化的流程
+在函数组件中，`useState` 的返回函数实际上是 `dispatchSetState`。
 
-1. 状态/属性的改变。
-2. **触发重新渲染 (Re-render)**: 当一个组件的 **state** 或 **props** 发生变化时（或者在某些情况下，即使 props/state 没变，但父组件重新渲染了，子组件也可能默认重新渲染，除非使用了 `React.memo` 等优化手段），React 会**调度**该组件进行重新渲染。
-3. **执行组件函数/render方法**: 重新渲染意味着React会**重新执行**该组件的函数体（对于函数组件）或调用其 [`render()`](shen-me-shi-react-rendercommit.md) 方法（对于类组件）。
-4. **Hooks 的执行与检查**: 在组件函数重新执行的过程中，其中定义的所有 Hooks（如 `useState`, `useEffect`, `useMemo`, `useCallback`, `useContext` 等）也会**再次被调用**。
-   * **`useState`**: 返回**当前渲染周期**的状态值。
-   * **`useEffect`**: 在函数执行后，React 会**检查**其依赖项数组。它会将当前渲染传入的依赖项与上一次渲染存储的依赖项进行**浅比较**。
-   * **`useMemo` / `useCallback`**: 同样会检查依赖项数组，如果依赖未变，则返回**缓存**的值/函数；如果依赖变了，则重新计算/创建。
-   * **`useContext`**: 读取并订阅 Context 的当前值。如果 Context 的值发生变化，所有订阅该 Context 的组件都会被标记为需要重新渲染。
-5. **副作用（Effects）的执行**: 如果 `useEffect` 的依赖项检查发现有变化（或者首次渲染），那么在渲染结果提交到 DOM **之后**，`useEffect` 内部定义的副作用函数就会被执行。
+当开发者调用 `setCount(c => c + 1)` 时，内部逻辑首先定位到该 Hook 对应的 Fiber 节点。React 会创建一个 `Update` 对象，其结构包含了本次更新的动作（Action）以及对应的优先级（Lane） 。
 
-## 举例说明
+$$Update = \{ lane: Lane, action: any, hasEagerState: boolean, eagerState: any, next: Update \}$$
 
-* **组件渲染**: 每当你的组件因为状态（state）或属性（props）改变而需要重新渲染时，整个组件函数（或类组件的 `render` 方法）会重新执行。
-* **`useEffect` 的执行**: 在组件函数执行过程中，`useEffect` Hook 也会被再次调用。
-* **存储旧依赖**: React 内部会**记住**上一次渲染时传递给这个 `useEffect` 的依赖数组的值。
-* **比较新旧依赖**: 当 `useEffect` 再次被调用时，React 会拿到**本次渲染**传递给它的**新的依赖数组**。然后，它会将这个**新数组**中的每一项与**旧数组**中对应位置的项进行**比较**。
-* **比较方法 - 浅比较 (Shallow Comparison)**: 这个比较是**浅比较**，使用的是 `Object.is()` 算法。这基本上等同于 `===` （严格相等）比较，但有两点细微差别（`Object.is(NaN, NaN)` 为 `true`，`Object.is(+0, -0)` 为 `false`），不过对于理解依赖比较，你可以近似地认为是 `===`。
-  * **对于原始类型 (Primitives)**: 如 `number`, `string`, `boolean`, `null`, `undefined`, `symbol`, `bigint`，`Object.is` 会直接比较它们的值。如果值不同（例如，`count` 从 `5` 变成 `6`），比较结果就是 `false`，表示依赖发生了变化。
-  * **对于引用类型 (Reference Types)**: 如 `object`, `array`, `function`，`Object.is` 比较的是它们的**内存地址引用**。
-    * 如果你在每次渲染时都创建了一个**新的**对象或数组（即使内容看起来一样），它们的引用地址也是不同的。例如，`[] === []` 是 `false`，`{} === {}` 也是 `false`。
-    * 只有当依赖项是**同一个对象或数组的引用**时，比较结果才为 `true`。
-* **决定是否执行 Effect**: React 会遍历新旧依赖数组，**只要发现任何一个对应位置的依赖项比较结果为 `false`（即不相等）**，React 就认为依赖发生了变化。
-  * 如果依赖发生变化（或者这是组件的第一次渲染），React 会：
-    * 安排执行上一次 `useEffect` 返回的**清理函数**（如果存在）。
-    * 在当前渲染提交到 DOM **之后**，安排执行本次 `useEffect` 的**主函数**（effect 函数）。
-  * 如果所有依赖项经过 `Object.is` 比较都与上一次渲染时的值**相等**，那么 React 就**跳过**执行清理函数和主函数。
+这个 `Update` 对象会被推入 Hook 的 `pending` 队列中。值得注意的是，React 使用了环形链表来存储更新，这使得 React 可以高效地获取队列中的最后一个元素，并能以常数时间复杂度完成新更新的追加 。
+
+在将更新任务提交给调度器之前，React 尝试进行一次性能优化：`eagerState` 计算。如果当前更新队列为空，且不处于渲染阶段，React 会尝试使用当前的 Reducer 预先计算出新状态 。
+
+通过 `Object.is` 算法，React 将计算出的 `eagerState` 与 Fiber 节点上的 `memoizedState` 进行对比。如果两者完全相同，React 将认为这次状态更新不会对 UI 产生任何改变，从而直接跳过后续的调度流程。这种机制能有效减少不必要的性能损耗，但也意味着对于引用类型的数据，如果未能保持不可变性（Immutability），这种避让机制将失效 。
+
+一旦确定需要执行更新，React 会调用 `scheduleUpdateOnFiber`。该函数承载了两个核心使命：
+
+* 向上冒泡（Bubble up）：通过 `markUpdateLaneFromFiberToRoot` 逻辑，从当前 Fiber 节点向上遍历至 `FiberRoot`。在遍历过程中，React 会将当前更新的 Lane 合并到沿途所有祖先节点的 `childLanes` 属性中 。这种标记行为如同信号灯，告知根节点在哪一条分支上存在待处理的逻辑。
+* 调度请求：通知调度器（Scheduler），有一个新的任务需要被执行。调度器会根据 Lane 的紧急程度，通过 `requestIdleCallback` 或 `MessageChannel` 在合适的时机触发 `workLoop` （递，归，commit）。
+
+## useContext变化的流程
+
+暂时没有阅读过这部分源码。这里先不进行笔记。
 
 ## Question
 
