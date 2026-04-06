@@ -14,7 +14,7 @@
 * [双缓冲](shuang-huan-chong.md)
 * [优先级调度 (Lanes)](you-xian-ji-diao-du-lanes.md)
 * [Reconciliation (协调)](reconciliation-xie-tiao.md)
-* [React的数据变化监听机制（待完成，需要结合源码）](react-de-shu-ju-bian-hua-jian-ting-ji-zhi-dai-wan-cheng-xu-yao-jie-he-yuan-ma.md)
+* [React的数据变化监听机制](react-de-shu-ju-bian-hua-jian-ting-ji-zhi.md)
 * [React 皇舆版图](react-huang-yu-ban-tu.md)
 * [React 并发](react-bing-fa.md)
 * [React Diff](react-diff/README.md)
