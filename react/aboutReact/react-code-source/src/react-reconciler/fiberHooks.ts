@@ -57,6 +57,21 @@ export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 type EffectCallback = () => void;
 type EffectDeps = any[] | null;
 
+/**
+ *
+ * 渲染函数组件并执行其内部的 Hooks。例如useState，useEffect等。
+ *
+ * 该函数主要负责：
+ * 1. 初始化 Hooks 执行的全局上下文（例如 `currentlyRenderingFiber` 和 `renderLane`）。
+ * 2. 清空当前 Fiber 节点上旧的 Hooks 和 Effects 链表，以便在本次渲染中重新构建。
+ * 3. 根据当前是挂载（Mount）还是更新（Update）阶段，选择并注入对应的 Hooks Dispatcher（`HooksDispatcherOnMount` 或 `HooksDispatcherOnUpdate`）。
+ * 4. 调用真实的函数组件执行渲染，获取 `children`。
+ * 5. 执行完毕后清理全局上下文，防止在组件外部非法调用 Hooks。
+ *
+ * @param wip 当前正在处理的函数组件的 Work In Progress (WIP) Fiber 节点。
+ * @param lane 本次渲染的优先级（Lane）。
+ * @returns 返回函数组件执行后生成的子节点（通常是 React Element 树）。
+ */
 export function renderWithHooks(wip: FiberNode, lane: Lane) {
   // 赋值操作
   currentlyRenderingFiber = wip;
@@ -109,7 +124,7 @@ function mountEffect(create: EffectCallback | void, deps: EffectDeps | void) {
     Passive | HookHasEffect,
     create,
     undefined,
-    nextDeps
+    nextDeps,
   );
 }
 
@@ -136,7 +151,7 @@ function updateEffect(create: EffectCallback | void, deps: EffectDeps | void) {
       Passive | HookHasEffect,
       create,
       destroy,
-      nextDeps
+      nextDeps,
     );
   }
 }
@@ -158,7 +173,7 @@ function pushEffect(
   hookFlags: Flags,
   create: EffectCallback | void,
   destroy: EffectCallback | void,
-  deps: EffectDeps | void
+  deps: EffectDeps | void,
 ): Effect {
   const effect: Effect = {
     tag: hookFlags,
@@ -267,7 +282,7 @@ function updateWorkInProgresHook(): Hook {
     // mount/update u1 u2 u3
     // update       u1 u2 u3 u4
     throw new Error(
-      `组件${currentlyRenderingFiber?.type}本次执行时的Hook比上次执行时多`
+      `组件${currentlyRenderingFiber?.type}本次执行时的Hook比上次执行时多`,
     );
   }
 
@@ -295,16 +310,16 @@ function updateWorkInProgresHook(): Hook {
   return workInProgressHook;
 }
 /**
- * 
- * @param initialState 
- * @returns 
- * 
+ *
+ * @param initialState
+ * @returns
+ *
  * 当useState传入的是函数的时候，其返回值作为memoizedState。
- * 
+ *
  * 当useState传入的是值的时候，其值作为memoizedState。
  */
 export function mountState<State>(
-  initialState: (() => State) | State
+  initialState: (() => State) | State,
 ): [State, Dispatch<State>] {
   // 找到当前useState对应的hook数据
   const hook = mountWorkInProgresHook();
@@ -325,15 +340,19 @@ export function mountState<State>(
 }
 
 /**
- * 
- * @param fiber 
- * @param updateQueue 
- * @param action 调用setState的时候传入的值
+ * 触发状态更新的调度函数（即 `useState` 返回的 `setState` / `dispatch` 函数的底层实现）。
+ *
+ * 当用户在组件中调用 `setState(action)` 时，实际上执行的就是被 bind 提前绑定了 `fiber` 和 `updateQueue` 的这个函数。
+ * 它主要负责：获取本次更新的优先级、创建更新对象、将更新推入队列、并通知 React 调度器在这个 Fiber 节点上开启一次全新的更新流程。
+ *
+ * @param fiber 触发更新的当前 Fiber 节点（即调用了该 `useState` 的函数组件对应的 Fiber 节点）。
+ * @param updateQueue 当前 `useState` Hook 内部维护的更新队列，用于存储所有的状态更新动作。// TODO： 这句话没有理解，稍后回来再整理一下
+ * @param action 用户调用 `setState` 时传入的动作，可以是一个新的状态值，也可以是一个接收旧状态返回新状态的函数 (`(prevState: State) => State`)。
  */
 export function dispatchSetState<State>(
   fiber: FiberNode,
   updateQueue: UpdateQueue<State>,
-  action: Action<State>
+  action: Action<State>,
 ) {
   const lane = requestUpdateLane();
   const update = createUpdate(action, lane);

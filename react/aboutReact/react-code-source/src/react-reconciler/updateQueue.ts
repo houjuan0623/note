@@ -23,7 +23,7 @@ export interface UpdateQueue<State> {
  */
 export const createUpdate = <State>(
   action: Action<State>,
-  lane: Lane
+  lane: Lane,
 ): Update<State> => {
   return {
     action,
@@ -90,7 +90,7 @@ export const createUpdateQueue = <State>() => {
  */
 export const enqueueUpdate = <State>(
   updateQueue: UpdateQueue<State>,
-  update: Update<State>
+  update: Update<State>,
 ) => {
   const pending = updateQueue.shared.pending;
   if (pending === null) {
@@ -122,7 +122,7 @@ export const enqueueUpdate = <State>(
 export const processUpdateQueue = <State>(
   baseState: State,
   pendingUpdate: Update<State> | null,
-  renderLane: Lane
+  renderLane: Lane,
 ): {
   memoizedState: State;
   baseState: State;
@@ -173,6 +173,24 @@ export const processUpdateQueue = <State>(
       } else {
         // 优先级够
         // 检查之前是否已有更新被跳过。如果有，说明当前这个高优先级更新是在某个低优先级更新之后被处理的。为了保证状态计算的顺序和一致性，即使这个高优先级更新被处理了，也需要将它的一个副本（但优先级设为 NoLane，因为它已经被处理了）添加到 newBaseQueue 中。这确保了 baseQueue 包含了所有原始更新（包括被跳过的和被处理的，如果它们之间穿插的话），以便未来能正确地重放。
+        // 为什么需要重放？
+        /**
+         * 假设你的组件有一个状态 count = 0，并且连续触发了两次更新：
+         * 1. Update 1（低优先级）：count => count + 1 （比如网络请求返回数据触发）
+         * 2. Update 2（高优先级）：count => count * 10 （比如用户疯狂点击按钮触发）
+         *
+         * 因为 React 发现了高优先级的 Update 2，为了让页面不卡顿，它决定跳过 Update 1，优先执行 Update 2。
+         *   本轮渲染结果：React 拿着初始状态 0，跳过 Update 1，直接执行 Update 2 (0 * 10)。屏幕上显示 0。
+         *   下一轮渲染（空闲时处理低优先级）：React 终于有空处理之前被跳过的 Update 1 了。它拿着初始状态 0，执行 Update 1 (0 + 1 = 1)。
+         *
+         * 问题来了！ 如果不把 Update 2 保存下来，那么下一轮渲染的最终结果就会变成 1。 但这显然是错的！因为用户确实点击了按钮，正确的最终结果应该是：先加1，再乘10，也就是 (0 + 1) * 10 = 10。高优先级更新产生的影响凭空丢失了！
+         *
+         * 这段代码是如何解决这个问题的？
+         *
+         * 一旦有更新被跳过了，那么在它之后的所有更新（不管是高还是低优先级），统统都要被追加到 newBaseQueue 中，留到下一次一并重放。
+         *   const clone = createUpdate(pending.action, NoLane);： 把当前这个高优先级的更新克隆一份。注意，这里把它标记为 NoLane（0优先级）。在位运算 isSubsetOfLanes 的逻辑中，NoLane 通常会被判定为绝对包含，这意味着在下一次重放时，它一定会被执行，不会再被跳过了。
+         *   newBaseQueueLast.next = clone; newBaseQueueLast = clone;： 把这个克隆的高优先级更新，老老实实地排在之前被跳过的低优先级更新后面，存放到 baseQueue 中。
+         */
         if (newBaseQueueLast !== null) {
           // 标记为NoLane，后面循环过程中不会被处理
           const clone = createUpdate(pending.action, NoLane);
