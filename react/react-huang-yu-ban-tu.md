@@ -73,7 +73,7 @@ ReactDom.createRoot(root).render(<App />)
 
 ## 对应的图示
 
-这个图示确实理解起来挺费劲的，需要跟着[视频](https://www.bilibili.com/video/BV198mKYYEKN)才能看懂。
+这个图示确实理解起来挺费劲的，需要跟着[视频](https://www.bilibili.com/video/BV198mKYYEKN)才能看懂
 
 ### 界面首次加载
 
