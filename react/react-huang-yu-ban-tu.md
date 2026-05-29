@@ -77,7 +77,8 @@ ReactDom.createRoot(root).render(<App />)
 
 ### 界面首次加载
 
-
+<figure><img src=".gitbook/assets/微信图片_20260529102901_1_5.png" alt=""><figcaption></figcaption></figure>
 
 ### 界面刷新
 
+<figure><img src=".gitbook/assets/界面更新.png" alt=""><figcaption></figcaption></figure>
